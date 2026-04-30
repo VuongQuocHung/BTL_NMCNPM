@@ -47,6 +47,24 @@ public class SecurityConfig {
                                 "/v3/api-docs/**",
                                 "/swagger-ui/**",
                                 "/swagger-ui.html",
+                                "/",
+                                "/index.html",
+                                "/products.html",
+                                "/product.html",
+                                "/cart.html",
+                                "/cart.css",
+                                "/cart.js",
+                                "/checkout.html",
+                                "/login.html",
+                                "/register.html",
+                                "/forgot-password.html",
+                                "/profile.html",
+                                "/orders.html",
+                                "/admin.html",
+                                "/style.css",
+                                "/app.js",
+                                "/favicon.ico",
+                                "/assets/**",
                                 "/docs",
                                 "/docs/**",
                                 "/api/swagger-ui/**",
@@ -68,8 +86,9 @@ public class SecurityConfig {
 
                         // 2. Các API GET công khai
                         .requestMatchers(HttpMethod.GET, "/api/brands/**", "/api/categories/**", "/api/products/**",
-                                "/api/reviews/**")
+                                "/api/reviews/**", "/api/vouchers/active")
                         .permitAll()
+                        .requestMatchers("/api/cart/**").permitAll()
 
                         // 3. Các API cần quyền CUSTOMER hoặc ADMIN
                         .requestMatchers(HttpMethod.GET, "/api/orders/**").hasAnyRole("CUSTOMER", "ADMIN")
@@ -80,7 +99,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.PUT, "/api/orders/*/status").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.DELETE, "/api/orders/**").hasRole("ADMIN")
                         .requestMatchers("/api/users/me").authenticated()
-                        .requestMatchers("/api/brands/**", "/api/categories/**", "/api/products/**", "/api/users/**",
+                        .requestMatchers("/api/brands/**", "/api/categories/**", "/api/products/**", "/api/vouchers/**", "/api/users/**",
                                 "/api/roles/**")
                         .hasRole("ADMIN")
 

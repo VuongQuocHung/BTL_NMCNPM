@@ -73,6 +73,7 @@ public class AuthService {
         // Trả về thông báo thay vì token (chưa được đăng nhập)
         return AuthResponse.builder()
                 .message("Đăng ký thành công! Vui lòng kiểm tra email để xác nhận tài khoản.")
+                .id(savedUser.getId())
                 .email(savedUser.getEmail())
                 .build();
     }
@@ -113,6 +114,8 @@ public class AuthService {
         // phân quyền (authorization)
 
         return AuthResponse.builder()
+                .id(user.getId())
+                .id(user.getId())
                 .token(token)
                 .tokenType("Bearer")
                 .email(user.getEmail())
