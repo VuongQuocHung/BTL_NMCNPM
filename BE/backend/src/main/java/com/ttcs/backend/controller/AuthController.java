@@ -103,10 +103,10 @@ public class AuthController {
         String baseUrl = normalizeFrontendUrl();
         try {
             authService.verifyEmail(token);
-            URI location = URI.create(baseUrl + "/user/login?verified=1");
+            URI location = URI.create(baseUrl + "/login.html?verified=1");
             return ResponseEntity.status(HttpStatus.FOUND).location(location).build();
         } catch (ResponseStatusException ex) {
-            URI location = URI.create(baseUrl + "/user/login?verified=0");
+            URI location = URI.create(baseUrl + "/login.html?verified=0");
             return ResponseEntity.status(HttpStatus.FOUND).location(location).build();
         }
     }

@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tài khoản</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body data-page="profile">
+  <header class="site-header">
+    <a class="logo" href="index.html">LaptopStore</a>
+    <nav class="nav">
+      <a href="index.html">Trang chủ</a>
+      <a href="products.html">Sản phẩm</a>
+      <a href="orders.html">Đơn hàng</a>
+      <a href="cart.html">Giỏ hàng <span id="cartCount" class="badge">0</span></a>
+      <a id="accountLink" href="login.html">Đăng nhập</a>
+      <button id="logoutBtn" class="link-button hidden">Đăng xuất</button>
+    </nav>
+  </header>
+
+  <main class="page">
+    <h1>Tài khoản của tôi</h1>
+    <p id="profileNotice" class="notice"></p>
+    <div class="layout">
+      <section id="profileInfo" class="panel"></section>
+      <form id="changePasswordForm" class="panel form">
+        <h2>Đổi mật khẩu</h2>
+        <label>Mật khẩu cũ
+          <input name="oldPassword" type="password" required>
+        </label>
+        <label>Mật khẩu mới
+          <input name="newPassword" type="password" required>
+        </label>
+        <label>Nhập lại mật khẩu mới
+          <input name="confirmPassword" type="password" required>
+        </label>
+        <button class="button primary" type="submit">Đổi mật khẩu</button>
+      </form>
+    </div>
+  </main>
+  <script src="app.js"></script>
+</body>
+</html>
