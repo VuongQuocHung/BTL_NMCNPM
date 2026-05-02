@@ -1,0 +1,142 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<web-app xmlns="https://jakarta.ee/xml/ns/jakartaee"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="https://jakarta.ee/xml/ns/jakartaee https://jakarta.ee/xml/ns/jakartaee/web-app_6_0.xsd"
+         version="6.0">
+
+    <display-name>VPH Laptop Store</display-name>
+
+    <!-- ==================== Listeners ==================== -->
+    <listener>
+        <listener-class>util.AppContextListener</listener-class>
+    </listener>
+
+    <!-- ==================== Filters ==================== -->
+    <filter>
+        <filter-name>CorsFilter</filter-name>
+        <filter-class>filter.CorsFilter</filter-class>
+    </filter>
+    <filter-mapping>
+        <filter-name>CorsFilter</filter-name>
+        <url-pattern>/api/*</url-pattern>
+    </filter-mapping>
+
+    <filter>
+        <filter-name>JwtFilter</filter-name>
+        <filter-class>filter.JwtFilter</filter-class>
+    </filter>
+    <filter-mapping>
+        <filter-name>JwtFilter</filter-name>
+        <url-pattern>/api/*</url-pattern>
+    </filter-mapping>
+
+    <!-- ==================== Servlets ==================== -->
+    <servlet>
+        <servlet-name>AuthServlet</servlet-name>
+        <servlet-class>controller.AuthServlet</servlet-class>
+    </servlet>
+    <servlet-mapping>
+        <servlet-name>AuthServlet</servlet-name>
+        <url-pattern>/api/auth/*</url-pattern>
+    </servlet-mapping>
+
+    <servlet>
+        <servlet-name>ProductServlet</servlet-name>
+        <servlet-class>controller.ProductServlet</servlet-class>
+    </servlet>
+    <servlet-mapping>
+        <servlet-name>ProductServlet</servlet-name>
+        <url-pattern>/api/products/*</url-pattern>
+    </servlet-mapping>
+
+    <servlet>
+        <servlet-name>BrandServlet</servlet-name>
+        <servlet-class>controller.BrandServlet</servlet-class>
+    </servlet>
+    <servlet-mapping>
+        <servlet-name>BrandServlet</servlet-name>
+        <url-pattern>/api/brands/*</url-pattern>
+    </servlet-mapping>
+
+    <servlet>
+        <servlet-name>CategoryServlet</servlet-name>
+        <servlet-class>controller.CategoryServlet</servlet-class>
+    </servlet>
+    <servlet-mapping>
+        <servlet-name>CategoryServlet</servlet-name>
+        <url-pattern>/api/categories/*</url-pattern>
+    </servlet-mapping>
+
+    <servlet>
+        <servlet-name>CartServlet</servlet-name>
+        <servlet-class>controller.CartServlet</servlet-class>
+    </servlet>
+    <servlet-mapping>
+        <servlet-name>CartServlet</servlet-name>
+        <url-pattern>/api/cart/*</url-pattern>
+    </servlet-mapping>
+
+    <servlet>
+        <servlet-name>OrderServlet</servlet-name>
+        <servlet-class>controller.OrderServlet</servlet-class>
+    </servlet>
+    <servlet-mapping>
+        <servlet-name>OrderServlet</servlet-name>
+        <url-pattern>/api/orders/*</url-pattern>
+    </servlet-mapping>
+
+    <servlet>
+        <servlet-name>UserServlet</servlet-name>
+        <servlet-class>controller.UserServlet</servlet-class>
+    </servlet>
+    <servlet-mapping>
+        <servlet-name>UserServlet</servlet-name>
+        <url-pattern>/api/users/*</url-pattern>
+    </servlet-mapping>
+
+    <servlet>
+        <servlet-name>ReviewServlet</servlet-name>
+        <servlet-class>controller.ReviewServlet</servlet-class>
+    </servlet>
+    <servlet-mapping>
+        <servlet-name>ReviewServlet</servlet-name>
+        <url-pattern>/api/reviews/*</url-pattern>
+    </servlet-mapping>
+
+    <servlet>
+        <servlet-name>VoucherServlet</servlet-name>
+        <servlet-class>controller.VoucherServlet</servlet-class>
+    </servlet>
+    <servlet-mapping>
+        <servlet-name>VoucherServlet</servlet-name>
+        <url-pattern>/api/vouchers/*</url-pattern>
+    </servlet-mapping>
+
+    <servlet>
+        <servlet-name>RoleServlet</servlet-name>
+        <servlet-class>controller.RoleServlet</servlet-class>
+    </servlet>
+    <servlet-mapping>
+        <servlet-name>RoleServlet</servlet-name>
+        <url-pattern>/api/roles/*</url-pattern>
+    </servlet-mapping>
+
+    <servlet>
+        <servlet-name>FileUploadServlet</servlet-name>
+        <servlet-class>controller.FileUploadServlet</servlet-class>
+        <multipart-config>
+            <max-file-size>10485760</max-file-size>
+            <max-request-size>10485760</max-request-size>
+            <file-size-threshold>0</file-size-threshold>
+        </multipart-config>
+    </servlet>
+    <servlet-mapping>
+        <servlet-name>FileUploadServlet</servlet-name>
+        <url-pattern>/api/files/*</url-pattern>
+    </servlet-mapping>
+
+    <!-- Welcome file -->
+    <welcome-file-list>
+        <welcome-file>index.jsp</welcome-file>
+    </welcome-file-list>
+</web-app>
