@@ -170,6 +170,7 @@ const App = (() => {
   }
 
   function bindAddCart(root = document) {
+    if (!root) return;
     $$("[data-add-cart]", root).forEach((button) => {
       button.addEventListener("click", async () => {
         button.disabled = true;
@@ -239,18 +240,20 @@ const App = (() => {
     query.set("size", "8");
 
     const form = $("#productFilterForm");
-    form.name.value = params.get("name") || "";
-    form.minPrice.value = params.get("minPrice") || "";
-    form.maxPrice.value = params.get("maxPrice") || "";
-    form.addEventListener("submit", (event) => {
-      event.preventDefault();
-      const data = formData(form);
-      const next = new URLSearchParams();
-      Object.entries(data).forEach(([key, value]) => {
-        if (String(value).trim()) next.set(key, value);
+    if (form) {
+      form.name.value = params.get("name") || "";
+      form.minPrice.value = params.get("minPrice") || "";
+      form.maxPrice.value = params.get("maxPrice") || "";
+      form.addEventListener("submit", (event) => {
+        event.preventDefault();
+        const data = formData(form);
+        const next = new URLSearchParams();
+        Object.entries(data).forEach(([key, value]) => {
+          if (String(value).trim()) next.set(key, value);
+        });
+        location.href = `products.jsp?${next.toString()}`;
       });
-      location.href = `products.jsp?${next.toString()}`;
-    });
+    }
 
     setNotice("#productNotice", "Đang tải sản phẩm...");
     try {
@@ -305,26 +308,29 @@ const App = (() => {
     bindAddCart($("#productDetail"));
     await loadReviews(id);
 
-    $("#reviewForm").addEventListener("submit", async (event) => {
-      event.preventDefault();
-      if (!requireLogin()) return;
-      const data = formData(event.currentTarget);
-      try {
-        await request("/api/reviews", {
-          method: "POST",
-          body: {
-            product: { id: Number(id) },
-            rating: Number(data.rating),
-            comment: data.comment
-          }
-        });
-        event.currentTarget.reset();
-        await loadReviews(id);
-        setNotice("#detailNotice", "Đã gửi đánh giá.", "success");
-      } catch (error) {
-        setNotice("#detailNotice", error.message, "error");
-      }
-    });
+    const reviewForm = $("#reviewForm");
+    if (reviewForm) {
+      reviewForm.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        if (!requireLogin()) return;
+        const data = formData(event.currentTarget);
+        try {
+          await request("/api/reviews", {
+            method: "POST",
+            body: {
+              product: { id: Number(id) },
+              rating: Number(data.rating),
+              comment: data.comment
+            }
+          });
+          event.currentTarget.reset();
+          await loadReviews(id);
+          setNotice("#detailNotice", "Đã gửi đánh giá.", "success");
+        } catch (error) {
+          setNotice("#detailNotice", error.message, "error");
+        }
+      });
+    }
   }
 
   async function loadReviews(productId) {
@@ -342,25 +348,34 @@ const App = (() => {
     const cart = await request("/api/cart");
     renderCart(cart);
     await loadAvailableVouchers();
-    $("#clearCartBtn").addEventListener("click", async () => {
-      await request("/api/cart/items", { method: "DELETE" });
-      renderCart(await request("/api/cart"));
-      await refreshCartCount();
-    });
-    $("#voucherForm").addEventListener("submit", async (event) => {
-      event.preventDefault();
-      const code = String(formData(event.currentTarget).code || "").trim();
-      if (!code) {
-        setNotice("#cartNotice", "Hãy nhập hoặc chọn một mã giảm giá.", "error");
-        return;
-      }
-      await applyVoucherCode(code);
-    });
-    $("#removeVoucherBtn").addEventListener("click", async () => {
-      const updated = await request("/api/cart/voucher", { method: "DELETE" });
-      renderCart(updated);
-      setNotice("#cartNotice", updated.message || "Đã gỡ voucher.", "success");
-    });
+    const clearCartBtn = $("#clearCartBtn");
+    if (clearCartBtn) {
+      clearCartBtn.addEventListener("click", async () => {
+        await request("/api/cart/items", { method: "DELETE" });
+        renderCart(await request("/api/cart"));
+        await refreshCartCount();
+      });
+    }
+    const voucherForm = $("#voucherForm");
+    if (voucherForm) {
+      voucherForm.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const code = String(formData(event.currentTarget).code || "").trim();
+        if (!code) {
+          setNotice("#cartNotice", "Hãy nhập hoặc chọn một mã giảm giá.", "error");
+          return;
+        }
+        await applyVoucherCode(code);
+      });
+    }
+    const removeVoucherBtn = $("#removeVoucherBtn");
+    if (removeVoucherBtn) {
+      removeVoucherBtn.addEventListener("click", async () => {
+        const updated = await request("/api/cart/voucher", { method: "DELETE" });
+        renderCart(updated);
+        setNotice("#cartNotice", updated.message || "Đã gỡ voucher.", "success");
+      });
+    }
   }
 
   async function loadAvailableVouchers() {
@@ -503,39 +518,41 @@ const App = (() => {
     $("#checkoutDiscount").textContent = `-${money(cart.discountAmount || 0)}`;
     $("#checkoutTotal").textContent = money(cart.totalAmount);
 
-    const form = $("#checkoutForm");
-    form.fullName.value = user.fullName || "";
-    form.email.value = user.email || "";
-    form.addEventListener("submit", async (event) => {
-      event.preventDefault();
-      if (!items.length) {
-        setNotice("#checkoutNotice", "Giỏ hàng đang trống.", "error");
-        return;
-      }
-      const data = formData(form);
-      const orderDetails = items.map((item) => ({
-        product: { id: item.productId },
-        quantity: item.quantity,
-        unitPrice: item.unitPrice
-      }));
-      try {
-        await request("/api/orders", {
-          method: "POST",
-          body: {
-            phoneNumber: data.phone,
-            shippingAddress: data.address,
-            totalAmount: cart.totalAmount,
-            orderDetails
-          }
-        });
-        await request("/api/cart/items", { method: "DELETE" });
-        setNotice("#checkoutNotice", "Đặt hàng thành công. Bạn có thể xem lại trong trang đơn hàng.", "success");
-        form.reset();
-        await refreshCartCount();
-      } catch (error) {
-        setNotice("#checkoutNotice", error.message, "error");
-      }
-    });
+    const checkoutForm = $("#checkoutForm");
+    if (checkoutForm) {
+      checkoutForm.fullName.value = user.fullName || "";
+      checkoutForm.email.value = user.email || "";
+      checkoutForm.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        if (!items.length) {
+          setNotice("#checkoutNotice", "Giỏ hàng đang trống.", "error");
+          return;
+        }
+        const data = formData(checkoutForm);
+        const orderDetails = items.map((item) => ({
+          product: { id: item.productId },
+          quantity: item.quantity,
+          unitPrice: item.unitPrice
+        }));
+        try {
+          await request("/api/orders", {
+            method: "POST",
+            body: {
+              phoneNumber: data.phone,
+              shippingAddress: data.address,
+              totalAmount: cart.totalAmount,
+              orderDetails
+            }
+          });
+          await request("/api/cart/items", { method: "DELETE" });
+          setNotice("#checkoutNotice", "Đặt hàng thành công. Bạn có thể xem lại trong trang đơn hàng.", "success");
+          checkoutForm.reset();
+          await refreshCartCount();
+        } catch (error) {
+          setNotice("#checkoutNotice", error.message, "error");
+        }
+      });
+    }
   }
 
   function initLogin() {
@@ -543,54 +560,66 @@ const App = (() => {
     if (verified === "1") setNotice("#loginNotice", "Xác thực email thành công. Bạn có thể đăng nhập.", "success");
     if (verified === "0") setNotice("#loginNotice", "Xác thực email thất bại hoặc token hết hạn.", "error");
 
-    $("#loginForm").addEventListener("submit", async (event) => {
-      event.preventDefault();
-      try {
-        const data = await request("/api/auth/login", { method: "POST", body: formData(event.currentTarget) });
-        localStorage.setItem("auth.token", data.token);
-        localStorage.setItem("auth.user", JSON.stringify(data));
-        location.href = data.role === "ADMIN" || data.role === "ROLE_ADMIN" ? "admin.jsp" : "index.jsp";
-      } catch (error) {
-        setNotice("#loginNotice", error.message, "error");
-      }
-    });
+    const loginForm = $("#loginForm");
+    if (loginForm) {
+      loginForm.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        try {
+          const data = await request("/api/auth/login", { method: "POST", body: formData(event.currentTarget) });
+          localStorage.setItem("auth.token", data.token);
+          localStorage.setItem("auth.user", JSON.stringify(data));
+          location.href = data.role === "ADMIN" || data.role === "ROLE_ADMIN" ? "admin.jsp" : "index.jsp";
+        } catch (error) {
+          setNotice("#loginNotice", error.message, "error");
+        }
+      });
+    }
   }
 
   function initRegister() {
-    $("#registerForm").addEventListener("submit", async (event) => {
-      event.preventDefault();
-      try {
-        const data = await request("/api/auth/register", { method: "POST", body: formData(event.currentTarget) });
-        if (data?.token) {
-          localStorage.setItem("auth.token", data.token);
-          localStorage.setItem("auth.user", JSON.stringify(data));
+    const registerForm = $("#registerForm");
+    if (registerForm) {
+      registerForm.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        try {
+          const data = await request("/api/auth/register", { method: "POST", body: formData(event.currentTarget) });
+          if (data?.token) {
+            localStorage.setItem("auth.token", data.token);
+            localStorage.setItem("auth.user", JSON.stringify(data));
+          }
+          setNotice("#registerNotice", data?.message || "Đăng ký thành công. Hãy kiểm tra email nếu hệ thống yêu cầu xác thực.", "success");
+        } catch (error) {
+          setNotice("#registerNotice", error.message, "error");
         }
-        setNotice("#registerNotice", data?.message || "Đăng ký thành công. Hãy kiểm tra email nếu hệ thống yêu cầu xác thực.", "success");
-      } catch (error) {
-        setNotice("#registerNotice", error.message, "error");
-      }
-    });
+      });
+    }
   }
 
   function initForgotPassword() {
-    $("#forgotForm").addEventListener("submit", async (event) => {
-      event.preventDefault();
-      try {
-        await request("/api/auth/forgot-password", { method: "POST", body: formData(event.currentTarget) });
-        setNotice("#forgotNotice", "Đã gửi yêu cầu đặt lại mật khẩu.", "success");
-      } catch (error) {
-        setNotice("#forgotNotice", error.message, "error");
-      }
-    });
-    $("#resetForm").addEventListener("submit", async (event) => {
-      event.preventDefault();
-      try {
-        await request("/api/auth/reset-password", { method: "POST", body: formData(event.currentTarget) });
-        setNotice("#forgotNotice", "Đặt lại mật khẩu thành công.", "success");
-      } catch (error) {
-        setNotice("#forgotNotice", error.message, "error");
-      }
-    });
+    const forgotForm = $("#forgotForm");
+    if (forgotForm) {
+      forgotForm.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        try {
+          await request("/api/auth/forgot-password", { method: "POST", body: formData(event.currentTarget) });
+          setNotice("#forgotNotice", "Đã gửi yêu cầu đặt lại mật khẩu.", "success");
+        } catch (error) {
+          setNotice("#forgotNotice", error.message, "error");
+        }
+      });
+    }
+    const resetForm = $("#resetForm");
+    if (resetForm) {
+      resetForm.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        try {
+          await request("/api/auth/reset-password", { method: "POST", body: formData(event.currentTarget) });
+          setNotice("#forgotNotice", "Đặt lại mật khẩu thành công.", "success");
+        } catch (error) {
+          setNotice("#forgotNotice", error.message, "error");
+        }
+      });
+    }
   }
 
   async function initProfile() {
@@ -605,16 +634,19 @@ const App = (() => {
       <a class="button" href="orders.jsp">Xem đơn hàng</a>
     `;
 
-    $("#changePasswordForm").addEventListener("submit", async (event) => {
-      event.preventDefault();
-      try {
-        await request("/api/auth/change-password", { method: "POST", body: formData(event.currentTarget) });
-        event.currentTarget.reset();
-        setNotice("#profileNotice", "Đổi mật khẩu thành công.", "success");
-      } catch (error) {
-        setNotice("#profileNotice", error.message, "error");
-      }
-    });
+    const changePasswordForm = $("#changePasswordForm");
+    if (changePasswordForm) {
+      changePasswordForm.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        try {
+          await request("/api/auth/change-password", { method: "POST", body: formData(event.currentTarget) });
+          event.currentTarget.reset();
+          setNotice("#profileNotice", "Đổi mật khẩu thành công.", "success");
+        } catch (error) {
+          setNotice("#profileNotice", error.message, "error");
+        }
+      });
+    }
   }
 
   async function initOrders() {
@@ -657,63 +689,98 @@ const App = (() => {
   }
 
   function bindAdminForms() {
-    $("#adminProductForm").addEventListener("submit", async (event) => {
-      event.preventDefault();
-      const data = formData(event.currentTarget);
-      const payload = {
-        name: data.name,
-        price: Number(data.price || 0),
-        importPrice: Number(data.importPrice || 0),
-        stock: Number(data.stock || 0),
-        description: data.description,
-        brand: data.brandId ? { id: Number(data.brandId) } : null,
-        category: data.categoryId ? { id: Number(data.categoryId) } : null,
-        images: data.imageUrl ? [{ imageUrl: data.imageUrl, isPrimary: true }] : [],
-        specification: {
-          cpu: data.cpu,
-          ram: data.ram,
-          storage: data.storage,
-          screen: data.screen
+    const brandForm = $("#adminBrandForm");
+    if (brandForm) {
+      brandForm.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const data = formData(event.currentTarget);
+        await saveAdmin("/api/brands", data.id, { name: data.name, logoUrl: data.logoUrl }, loadAdminBrands);
+        event.currentTarget.reset();
+      });
+    }
+
+    const categoryForm = $("#adminCategoryForm");
+    if (categoryForm) {
+      categoryForm.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const data = formData(event.currentTarget);
+        await saveAdmin("/api/categories", data.id, { name: data.name, description: data.description }, loadAdminCategories);
+        event.currentTarget.reset();
+      });
+    }
+
+    const voucherForm = $("#adminVoucherForm");
+    if (voucherForm) {
+      voucherForm.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const data = formData(event.currentTarget);
+        const payload = {
+          code: data.code,
+          name: data.name,
+          description: data.description,
+          discountType: data.discountType,
+          discountValue: Number(data.discountValue || 0),
+          minOrderAmount: data.minOrderAmount ? Number(data.minOrderAmount) : null,
+          maxDiscountAmount: data.maxDiscountAmount ? Number(data.maxDiscountAmount) : null,
+          usageLimit: data.usageLimit ? Number(data.usageLimit) : null,
+          usedCount: Number(data.usedCount || 0),
+          startDate: data.startDate || null,
+          endDate: data.endDate || null,
+          active: data.active === "true"
+        };
+        await saveAdmin("/api/vouchers", data.id, payload, loadAdminVouchers);
+        event.currentTarget.reset();
+      });
+    }
+  }
+
+  async function initAdminProduct() {
+    if (!requireLogin()) return;
+    const id = params.get("id");
+    if (id) {
+      setNotice("#adminNotice", "Đang tải sản phẩm...");
+      try {
+        const product = await request(`/api/products/${id}`);
+        fillProductForm(product);
+        setNotice("#adminNotice", "");
+      } catch (error) {
+        setNotice("#adminNotice", error.message, "error");
+      }
+    }
+
+    const form = $("#adminProductForm");
+    if (form) {
+      form.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const data = formData(event.currentTarget);
+        const payload = {
+          name: data.name,
+          price: Number(data.price || 0),
+          importPrice: Number(data.importPrice || 0),
+          stock: Number(data.stock || 0),
+          description: data.description,
+          brand: data.brandId ? { id: Number(data.brandId) } : null,
+          category: data.categoryId ? { id: Number(data.categoryId) } : null,
+          images: data.imageUrl ? [{ imageUrl: data.imageUrl, isPrimary: true }] : [],
+          specification: {
+            cpu: data.cpu,
+            ram: data.ram,
+            storage: data.storage,
+            screen: data.screen
+          }
+        };
+        try {
+          await request(data.id ? `/api/products/${data.id}` : "/api/products", {
+            method: data.id ? "PUT" : "POST",
+            body: payload
+          });
+          alert("Đã lưu sản phẩm thành công.");
+          location.href = "admin.jsp";
+        } catch (error) {
+          setNotice("#adminNotice", error.message, "error");
         }
-      };
-      await saveAdmin("/api/products", data.id, payload, loadAdminProducts);
-      event.currentTarget.reset();
-    });
-
-    $("#adminBrandForm").addEventListener("submit", async (event) => {
-      event.preventDefault();
-      const data = formData(event.currentTarget);
-      await saveAdmin("/api/brands", data.id, { name: data.name, logoUrl: data.logoUrl }, loadAdminBrands);
-      event.currentTarget.reset();
-    });
-
-    $("#adminCategoryForm").addEventListener("submit", async (event) => {
-      event.preventDefault();
-      const data = formData(event.currentTarget);
-      await saveAdmin("/api/categories", data.id, { name: data.name, description: data.description }, loadAdminCategories);
-      event.currentTarget.reset();
-    });
-
-    $("#adminVoucherForm").addEventListener("submit", async (event) => {
-      event.preventDefault();
-      const data = formData(event.currentTarget);
-      const payload = {
-        code: data.code,
-        name: data.name,
-        description: data.description,
-        discountType: data.discountType,
-        discountValue: Number(data.discountValue || 0),
-        minOrderAmount: data.minOrderAmount ? Number(data.minOrderAmount) : null,
-        maxDiscountAmount: data.maxDiscountAmount ? Number(data.maxDiscountAmount) : null,
-        usageLimit: data.usageLimit ? Number(data.usageLimit) : null,
-        usedCount: Number(data.usedCount || 0),
-        startDate: data.startDate || null,
-        endDate: data.endDate || null,
-        active: data.active === "true"
-      };
-      await saveAdmin("/api/vouchers", data.id, payload, loadAdminVouchers);
-      event.currentTarget.reset();
-    });
+      });
+    }
   }
 
   async function saveAdmin(base, id, payload, reload) {
@@ -746,14 +813,17 @@ const App = (() => {
       p.stock ?? 0,
       html(p.brand?.name || ""),
       html(p.category?.name || ""),
-      `<button class="button" data-edit-product="${p.id}">Sửa</button> <button class="button danger" data-delete-product="${p.id}">Xóa</button>`
+      `<div style="display: flex; gap: 8px; justify-content: flex-end;">
+        <a class="button" href="admin-product.jsp?id=${p.id}">Sửa</a>
+        <button class="button danger" data-delete-product="${p.id}">Xóa</button>
+      </div>`
     ]));
     $$("[data-delete-product]").forEach((btn) => btn.onclick = () => removeAdmin(`/api/products/${btn.dataset.deleteProduct}`, loadAdminProducts));
-    $$("[data-edit-product]").forEach((btn) => btn.onclick = async () => fillProductForm(await request(`/api/products/${btn.dataset.editProduct}`)));
   }
 
   function fillProductForm(product) {
     const form = $("#adminProductForm");
+    if (!form) return;
     form.id.value = product.id || "";
     form.name.value = product.name || "";
     form.price.value = product.price || "";
@@ -914,9 +984,11 @@ const App = (() => {
       if (page === "profile") await initProfile();
       if (page === "orders") await initOrders();
       if (page === "admin") await initAdmin();
+      if (page === "admin-product") await initAdminProduct();
     } catch (error) {
+      console.error("App Boot Error:", error);
       const notice = $(".notice");
-      setNotice(notice, error.message, "error");
+      if (notice) setNotice(notice, error.message, "error");
     }
   }
 

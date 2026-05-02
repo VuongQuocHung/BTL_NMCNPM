@@ -37,24 +37,9 @@
     </div>
 
     <section class="admin-section" data-panel="products">
-      <form id="adminProductForm" class="panel form admin-form">
-        <h2>Thêm/sửa sản phẩm</h2>
-        <input type="hidden" name="id">
-        <label>Tên <input name="name" required></label>
-        <label>Giá bán <input name="price" type="number" min="0" required></label>
-        <label>Giá nhập <input name="importPrice" type="number" min="0"></label>
-        <label>Tồn kho <input name="stock" type="number" min="0" required></label>
-        <label>ID thương hiệu <input name="brandId" type="number"></label>
-        <label>ID danh mục <input name="categoryId" type="number"></label>
-        <label>Ảnh <input name="imageUrl" placeholder="/uploads/file.jpg hoặc URL"></label>
-        <label>CPU <input name="cpu"></label>
-        <label>RAM <input name="ram"></label>
-        <label>Ổ cứng <input name="storage"></label>
-        <label>Màn hình <input name="screen"></label>
-        <label>Mô tả <textarea name="description" rows="3"></textarea></label>
-        <button class="button primary" type="submit">Lưu sản phẩm</button>
-        <button class="button" type="reset">Nhập mới</button>
-      </form>
+      <div class="actions">
+        <a href="admin-product.jsp" class="button primary">Thêm sản phẩm mới</a>
+      </div>
       <div id="adminProducts" class="table-wrap"></div>
     </section>
 
