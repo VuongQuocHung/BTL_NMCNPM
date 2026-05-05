@@ -685,6 +685,14 @@ const App = (() => {
     });
 
     bindAdminForms();
+    const productSearch = $("#adminProductSearch");
+    if (productSearch) {
+      let timeout;
+      productSearch.addEventListener("input", () => {
+        clearTimeout(timeout);
+        timeout = setTimeout(() => loadAdminProducts(productSearch.value), 300);
+      });
+    }
     await Promise.all([loadAdminProducts(), loadAdminBrands(), loadAdminCategories(), loadAdminVouchers(), loadAdminOrders(), loadAdminUsers()]);
   }
 
@@ -804,8 +812,10 @@ const App = (() => {
     }
   }
 
-  async function loadAdminProducts() {
-    const result = await request("/api/products?size=100");
+  async function loadAdminProducts(search = "") {
+    const query = new URLSearchParams({ size: 100 });
+    if (search) query.set("name", search);
+    const result = await request(`/api/products?${query.toString()}`);
     $("#adminProducts").innerHTML = table(["ID", "Tên", "Giá", "Kho", "Thương hiệu", "Danh mục", ""], pageContent(result).map((p) => [
       p.id,
       html(p.name),

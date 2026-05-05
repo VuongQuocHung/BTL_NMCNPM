@@ -39,6 +39,9 @@
     <section class="admin-section" data-panel="products">
       <div class="actions">
         <a href="admin-product.jsp" class="button primary">Thêm sản phẩm mới</a>
+        <div style="flex: 1; max-width: 400px; margin-left: auto;">
+          <input type="text" id="adminProductSearch" placeholder="Tìm kiếm sản phẩm theo tên..." class="input">
+        </div>
       </div>
       <div id="adminProducts" class="table-wrap"></div>
     </section>
