@@ -9,15 +9,52 @@ const App = (() => {
     </svg>
   `);
 
-  const apiBase = () => {
-    const saved = localStorage.getItem("api.base");
-    if (saved) return saved.replace(/\/$/, "");
-    // Auto-detect context path from current URL
+  const contextPath = () => {
+    const script = document.currentScript
+      || Array.from(document.scripts).find((item) => item.src && item.src.includes("/js/app.js"));
+
+    // The app can be deployed as /backend, so derive the context from /backend/js/app.js.
+    if (script?.src) {
+      const scriptPath = new URL(script.src, location.href).pathname;
+      const marker = "/js/app.js";
+      const markerIndex = scriptPath.lastIndexOf(marker);
+      if (markerIndex >= 0) {
+        return scriptPath.substring(0, markerIndex);
+      }
+    }
+
     const path = location.pathname;
     const jspIndex = path.lastIndexOf(".jsp");
-    const contextPath = jspIndex >= 0 ? path.substring(0, path.lastIndexOf("/", jspIndex)) : path.replace(/\/$/, "");
-    return location.origin + contextPath;
+    if (jspIndex >= 0) {
+      return path.substring(0, path.lastIndexOf("/", jspIndex));
+    }
+    return path.replace(/\/$/, "");
   };
+
+  const apiBase = () => {
+    const detectedContext = contextPath();
+    const detectedBase = `${location.origin}${detectedContext}`;
+    const saved = localStorage.getItem("api.base");
+
+    if (!saved) return detectedBase;
+
+    try {
+      const savedUrl = new URL(saved, location.origin);
+      const savedPath = savedUrl.pathname.replace(/\/$/, "");
+
+      // Ignore stale same-origin values like http://localhost:8080 or /api when the JSP runs under /backend.
+      if (savedUrl.origin === location.origin && savedPath !== detectedContext) {
+        localStorage.setItem("api.base", detectedBase);
+        return detectedBase;
+      }
+
+      return `${savedUrl.origin}${savedPath}`;
+    } catch {
+      localStorage.removeItem("api.base");
+      return detectedBase;
+    }
+  };
+  console.log("API Base URL:", apiBase());
 
   const $ = (selector, root = document) => root.querySelector(selector);
   const $$ = (selector, root = document) => Array.from(root.querySelectorAll(selector));

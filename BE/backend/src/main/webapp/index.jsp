@@ -54,6 +54,6 @@
   </main>
 
   <footer class="footer">VPH Laptop Store - Static frontend</footer>
-  <script src="js/app.js?v=1"></script>
+  <script src="js/app.js?v=2"></script>
 </body>
 </html>
