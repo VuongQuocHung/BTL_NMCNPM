@@ -9,12 +9,26 @@ const App = (() => {
     </svg>
   `);
 
+  const normalizeApiBase = (value) => {
+    if (!value) return "";
+    const cleaned = value.replace(/\/$/, "");
+    return cleaned.endsWith("/backend") ? cleaned.slice(0, -"/backend".length) : cleaned;
+  };
+
   const apiBase = () => {
     const saved = localStorage.getItem("api.base");
-    if (saved) return saved.replace(/\/$/, "");
+    if (saved) {
+      const normalized = normalizeApiBase(saved);
+      if (normalized !== saved.replace(/\/$/, "")) {
+        localStorage.setItem("api.base", normalized);
+      }
+      return normalized;
+    }
     if (location.protocol.startsWith("http")) return location.origin;
     return "http://localhost:8080";
   };
+
+  console.log("API Base URL:", apiBase());
 
   const $ = (selector, root = document) => root.querySelector(selector);
   const $$ = (selector, root = document) => Array.from(root.querySelectorAll(selector));
@@ -168,7 +182,7 @@ const App = (() => {
         try {
           await request("/api/cart/items", {
             method: "POST",
-            body: { productId: Number(button.dataset.addCart), quantity: 1 }
+            body: { productId: Number(button.dataset.addCart) }
           });
           await refreshCartCount();
           button.textContent = "Đã thêm";
@@ -359,7 +373,7 @@ const App = (() => {
     const box = $("#availableVouchers");
     if (!box) return;
     try {
-      const result = await request("/api/vouchers/active?size=20&sortBy=id&sortDir=desc");
+      const result = await request("/api/cart/vouchers");
       activeVouchers = pageContent(result);
       renderAvailableVouchers();
     } catch {
@@ -375,11 +389,12 @@ const App = (() => {
     const subtotal = Number(cart.subtotal || 0);
     box.innerHTML = activeVouchers.map((voucher) => {
       const minAmount = Number(voucher.minOrderAmount || 0);
-      const disabled = minAmount > subtotal;
+      const eligible = typeof voucher.eligible === "boolean" ? voucher.eligible : minAmount <= subtotal;
+      const disabled = !eligible;
       const selected = cart.voucherCode === voucher.code;
       const meta = [
         voucherDiscountText(voucher),
-        minAmount ? `đơn từ ${money(minAmount)}` : "không yêu cầu đơn tối thiểu",
+        voucher.eligibilityMessage || (minAmount ? `đơn từ ${money(minAmount)}` : "không yêu cầu đơn tối thiểu"),
         voucher.endDate ? `hết hạn ${formatDateTime(voucher.endDate)}` : ""
       ].filter(Boolean).join(" • ");
       return `

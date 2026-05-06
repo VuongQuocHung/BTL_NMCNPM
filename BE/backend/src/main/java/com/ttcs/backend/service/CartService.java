@@ -2,6 +2,7 @@ package com.ttcs.backend.service;
 
 import com.ttcs.backend.cart.dto.CartItemResponse;
 import com.ttcs.backend.cart.dto.CartResponse;
+import com.ttcs.backend.cart.dto.VoucherEligibilityResponse;
 import com.ttcs.backend.entity.Cart;
 import com.ttcs.backend.entity.CartItem;
 import com.ttcs.backend.entity.Product;
@@ -37,6 +38,7 @@ public class CartService {
 
     private static final String SESSION_CART_KEY = "SESSION_CART_ITEMS";
     private static final String SESSION_VOUCHER_KEY = "SESSION_CART_VOUCHER";
+    private static final int DEFAULT_ADD_QUANTITY = 1;
 
     private final CartRepository cartRepository;
     private final ProductRepository productRepository;
@@ -55,48 +57,45 @@ public class CartService {
     }
 
     @Transactional
-    public CartResponse addItem(Long productId, Integer quantity, HttpServletRequest request) {
-        int safeQuantity = normalizeQuantity(quantity);
+    public CartResponse addItem(Long productId, HttpServletRequest request) {
         Product product = getExistingProduct(productId);
 
+        // UC-2.1: nút Add luôn thêm mặc định 1 sản phẩm; nếu đã có thì tăng thêm 1.
+        int addQuantity = DEFAULT_ADD_QUANTITY;
         Optional<Long> userId = SecurityUtils.getCurrentUserId();
         if (userId.isPresent()) {
             Cart cart = getOrCreateDatabaseCart(userId.get());
-            CartItem item = findCartItem(cart, productId).orElse(null);
-            int newQuantity = safeQuantity + (item == null ? 0 : item.getQuantity());
+            CartItem item = cart.findCartItem(productId).orElse(null);
+            int currentQuantity = item == null || item.getQuantity() == null ? 0 : item.getQuantity();
+            int newQuantity = addQuantity + currentQuantity;
             validateStock(product, newQuantity);
 
             if (item == null) {
-                cart.addItem(CartItem.builder()
-                        .product(product)
-                        .quantity(newQuantity)
-                        .build());
+                cart.addProduct(product, newQuantity);
             } else {
-                item.setQuantity(newQuantity);
+                item.updateQuantity(newQuantity);
+                item.calculateLineTotal();
             }
+            cart.calculateTotal();
 
             return buildDatabaseCartResponse(
                     cartRepository.save(cart),
                     "database",
-                    "Product added to cart successfully."
+                    "Thêm sản phẩm vào giỏ hàng thành công."
             );
         }
 
         Map<Long, Integer> items = sessionItems(request, true);
-        int newQuantity = items.getOrDefault(productId, 0) + safeQuantity;
+        int newQuantity = items.getOrDefault(productId, 0) + addQuantity;
         validateStock(product, newQuantity);
         items.put(productId, newQuantity);
-        return buildSessionCartResponse(request, items, "session", "Product added to cart successfully.");
+        return buildSessionCartResponse(request, items, "session", "Thêm sản phẩm vào giỏ hàng thành công.");
     }
 
     @Transactional
     public CartResponse updateItem(Long productId, Integer quantity, HttpServletRequest request) {
-        if (quantity == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid quantity");
-        }
-
-        if (quantity < 1) {
-            return removeItem(productId, request);
+        if (quantity == null || quantity < 1) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Số lượng không hợp lệ");
         }
 
         Product product = getExistingProduct(productId);
@@ -105,18 +104,22 @@ public class CartService {
         Optional<Long> userId = SecurityUtils.getCurrentUserId();
         if (userId.isPresent()) {
             Cart cart = getOrCreateDatabaseCart(userId.get());
-            CartItem item = findCartItem(cart, productId)
-                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Product is not in cart."));
-            item.setQuantity(quantity);
-            return buildDatabaseCartResponse(cartRepository.save(cart), "database", "Cart quantity updated successfully.");
+            CartItem item = cart.findCartItem(productId)
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Sản phẩm không có trong giỏ hàng."));
+
+            // UC-2.3: sau khi số lượng hợp lệ, CartItem tính lại thành tiền và Cart tính lại tổng.
+            item.updateQuantity(quantity);
+            item.calculateLineTotal();
+            cart.calculateTotal();
+            return buildDatabaseCartResponse(cartRepository.save(cart), "database", "Cập nhật số lượng giỏ hàng thành công.");
         }
 
         Map<Long, Integer> items = sessionItems(request, true);
         if (!items.containsKey(productId)) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Product is not in cart.");
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Sản phẩm không có trong giỏ hàng.");
         }
         items.put(productId, quantity);
-        return buildSessionCartResponse(request, items, "session", "Cart quantity updated successfully.");
+        return buildSessionCartResponse(request, items, "session", "Cập nhật số lượng giỏ hàng thành công.");
     }
 
     @Transactional
@@ -124,13 +127,19 @@ public class CartService {
         Optional<Long> userId = SecurityUtils.getCurrentUserId();
         if (userId.isPresent()) {
             Cart cart = getOrCreateDatabaseCart(userId.get());
-            findCartItem(cart, productId).ifPresent(cart::removeItem);
-            return buildDatabaseCartResponse(cartRepository.save(cart), "database", "Product removed from cart.");
+            if (!cart.removeItemByProductId(productId)) {
+                throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Sản phẩm không có trong giỏ hàng.");
+            }
+            cart.calculateTotal();
+            return buildDatabaseCartResponse(cartRepository.save(cart), "database", "Đã xóa sản phẩm khỏi giỏ hàng.");
         }
 
         Map<Long, Integer> items = sessionItems(request, true);
+        if (!items.containsKey(productId)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Sản phẩm không có trong giỏ hàng.");
+        }
         items.remove(productId);
-        return buildSessionCartResponse(request, items, "session", "Product removed from cart.");
+        return buildSessionCartResponse(request, items, "session", "Đã xóa sản phẩm khỏi giỏ hàng.");
     }
 
     @Transactional
@@ -138,39 +147,32 @@ public class CartService {
         Optional<Long> userId = SecurityUtils.getCurrentUserId();
         if (userId.isPresent()) {
             Cart cart = getOrCreateDatabaseCart(userId.get());
-            cart.getItems().clear();
-            cart.setAppliedVoucherCode(null);
-            return buildDatabaseCartResponse(cartRepository.save(cart), "database", "Cart cleared successfully.");
+            cart.clearItems();
+            cart.calculateTotal();
+            return buildDatabaseCartResponse(cartRepository.save(cart), "database", "Đã xóa tất cả sản phẩm trong giỏ hàng.");
         }
 
         sessionItems(request, true).clear();
         clearSessionVoucher(request);
-        return buildSessionCartResponse(request, sessionItems(request, true), "session", "Cart cleared successfully.");
+        return buildSessionCartResponse(request, sessionItems(request, true), "session", "Đã xóa tất cả sản phẩm trong giỏ hàng.");
     }
 
     @Transactional
     public CartResponse applyVoucher(String code, HttpServletRequest request) {
         String normalizedCode = normalizeVoucherCode(code);
-        Optional<Long> userId = SecurityUtils.getCurrentUserId();
-        if (userId.isPresent()) {
-            Cart cart = getOrCreateDatabaseCart(userId.get());
-            CartResponse current = buildDatabaseCartResponse(cart, "database", null);
-            if (current.isEmpty()) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Cart is empty");
-            }
-            Voucher voucher = getApplicableVoucher(normalizedCode, current.getSubtotal());
-            cart.setAppliedVoucherCode(voucher.getCode());
-            return buildDatabaseCartResponse(cartRepository.save(cart), "database", "Voucher applied successfully.");
-        }
 
-        Map<Long, Integer> items = sessionItems(request, true);
-        CartResponse current = buildSessionCartResponse(request, items, "session", null);
+        // UC-2.5: áp dụng voucher là luồng dành cho khách hàng đã đăng nhập.
+        Long userId = SecurityUtils.getCurrentUserId()
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Vui lòng đăng nhập để áp dụng voucher."));
+        Cart cart = getOrCreateDatabaseCart(userId);
+        CartResponse current = buildDatabaseCartResponse(cart, "database", null);
         if (current.isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Cart is empty");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Giỏ hàng đang trống");
         }
         Voucher voucher = getApplicableVoucher(normalizedCode, current.getSubtotal());
-        request.getSession(true).setAttribute(SESSION_VOUCHER_KEY, voucher.getCode());
-        return buildSessionCartResponse(request, items, "session", "Voucher applied successfully.");
+        cart.setAppliedVoucherCode(voucher.getCode());
+        cart.calculateTotal(calculateDiscount(voucher, current.getSubtotal()));
+        return buildDatabaseCartResponse(cartRepository.save(cart), "database", "Áp dụng voucher thành công.");
     }
 
     @Transactional
@@ -179,23 +181,38 @@ public class CartService {
         if (userId.isPresent()) {
             Cart cart = getOrCreateDatabaseCart(userId.get());
             cart.setAppliedVoucherCode(null);
-            return buildDatabaseCartResponse(cartRepository.save(cart), "database", "Voucher removed successfully.");
+            return buildDatabaseCartResponse(cartRepository.save(cart), "database", "Đã gỡ voucher khỏi giỏ hàng.");
         }
 
         clearSessionVoucher(request);
-        return buildSessionCartResponse(request, sessionItems(request, true), "session", "Voucher removed successfully.");
+        return buildSessionCartResponse(request, sessionItems(request, true), "session", "Đã gỡ voucher khỏi giỏ hàng.");
+    }
+
+    @Transactional
+    public List<VoucherEligibilityResponse> getAvailableVouchers(HttpServletRequest request) {
+        Long userId = SecurityUtils.getCurrentUserId()
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Vui lòng đăng nhập để xem voucher."));
+        Cart cart = getOrCreateDatabaseCart(userId);
+        CartResponse current = buildDatabaseCartResponse(cart, "database", null);
+        BigDecimal temporaryTotal = current.getSubtotal();
+
+        // UC-2.5: CartController trả toàn bộ voucher kèm trạng thái đủ/không đủ điều kiện
+        // dựa trên tạm tính hiện tại của giỏ hàng.
+        return voucherRepository.findAll().stream()
+                .map(voucher -> buildVoucherEligibility(voucher, temporaryTotal))
+                .toList();
     }
 
     private Product getExistingProduct(Long productId) {
         return productRepository.findWithDetailsById(productId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Product does not exist or was deleted."));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Sản phẩm không tồn tại hoặc đã bị xóa."));
     }
 
     private Cart getOrCreateDatabaseCart(Long userId) {
         return cartRepository.findWithItemsByUserId(userId)
                 .orElseGet(() -> {
                     User user = userRepository.findById(userId)
-                            .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid customer."));
+                            .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Khách hàng không hợp lệ."));
                     return cartRepository.save(Cart.builder()
                             .user(user)
                             .active(true)
@@ -203,32 +220,19 @@ public class CartService {
                 });
     }
 
-    private Optional<CartItem> findCartItem(Cart cart, Long productId) {
-        if (cart == null || cart.getItems() == null) {
-            return Optional.empty();
-        }
-
-        return cart.getItems().stream()
-                .filter(item -> item.getProduct() != null && productId.equals(item.getProduct().getId()))
-                .findFirst();
-    }
-
-    private int normalizeQuantity(Integer quantity) {
-        if (quantity == null || quantity < 1) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid quantity");
-        }
-        return quantity;
-    }
-
     private void validateStock(Product product, int quantity) {
         if (product.getStock() == null || product.getStock() <= 0 || quantity > product.getStock()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Not enough product stock.");
+            int stock = product.getStock() == null ? 0 : product.getStock();
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Số lượng sản phẩm trong kho chỉ còn " + stock + " sản phẩm."
+            );
         }
     }
 
     private String normalizeVoucherCode(String code) {
         if (code == null || code.trim().isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Voucher code is required");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Mã voucher bắt buộc phải có");
         }
         return code.trim().toUpperCase();
     }
@@ -340,13 +344,13 @@ public class CartService {
         boolean outOfStock = stock <= 0;
         boolean adjusted = actualQuantity != requestedQuantity;
         BigDecimal unitPrice = product.getPrice() == null ? BigDecimal.ZERO : product.getPrice();
-        BigDecimal lineTotal = unitPrice.multiply(BigDecimal.valueOf(actualQuantity));
+        BigDecimal lineTotal = CartItem.calculateLineTotal(unitPrice, actualQuantity);
 
         String warning = null;
         if (outOfStock) {
-            warning = "Product is out of stock.";
+            warning = "Sản phẩm đã hết hàng.";
         } else if (adjusted) {
-            warning = "Only " + stock + " product(s) left in stock.";
+            warning = "Số lượng sản phẩm trong kho chỉ còn " + stock + " sản phẩm.";
         }
 
         return CartItemResponse.builder()
@@ -392,12 +396,37 @@ public class CartService {
 
     private Voucher getApplicableVoucher(String code, BigDecimal subtotal) {
         Voucher voucher = voucherRepository.findByCodeIgnoreCase(code)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Voucher does not exist"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Voucher không tồn tại"));
         String error = validateVoucher(voucher, subtotal);
         if (error != null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, error);
         }
         return voucher;
+    }
+
+    private VoucherEligibilityResponse buildVoucherEligibility(Voucher voucher, BigDecimal temporaryTotal) {
+        BigDecimal safeTemporaryTotal = temporaryTotal == null ? BigDecimal.ZERO : temporaryTotal;
+        String error = safeTemporaryTotal.signum() <= 0
+                ? "Giỏ hàng đang trống"
+                : validateVoucher(voucher, safeTemporaryTotal);
+        boolean eligible = error == null;
+
+        return VoucherEligibilityResponse.builder()
+                .id(voucher.getId())
+                .code(voucher.getCode())
+                .name(voucher.getName())
+                .description(voucher.getDescription())
+                .discountType(voucher.getDiscountType())
+                .discountValue(voucher.getDiscountValue())
+                .minOrderAmount(voucher.getMinOrderAmount())
+                .maxDiscountAmount(voucher.getMaxDiscountAmount())
+                .startDate(voucher.getStartDate())
+                .endDate(voucher.getEndDate())
+                .active(voucher.isActive())
+                .eligible(eligible)
+                .eligibilityMessage(eligible ? "Đủ điều kiện" : error)
+                .expectedDiscountAmount(eligible ? calculateDiscount(voucher, safeTemporaryTotal) : BigDecimal.ZERO)
+                .build();
     }
 
     private AppliedVoucher resolveAppliedVoucher(String code, BigDecimal subtotal) {
@@ -409,7 +438,7 @@ public class CartService {
         }
         Optional<Voucher> voucher = voucherRepository.findByCodeIgnoreCase(code.trim());
         if (voucher.isEmpty()) {
-            return AppliedVoucher.removed("Voucher is no longer available.");
+            return AppliedVoucher.removed("Voucher không còn khả dụng.");
         }
         String error = validateVoucher(voucher.get(), subtotal);
         if (error != null) {
@@ -420,7 +449,7 @@ public class CartService {
                 voucher.get().getCode(),
                 voucher.get().getName(),
                 discountAmount,
-                "Voucher applied successfully.",
+                "Áp dụng voucher thành công.",
                 false
         );
     }
@@ -428,23 +457,23 @@ public class CartService {
     private String validateVoucher(Voucher voucher, BigDecimal subtotal) {
         LocalDateTime now = LocalDateTime.now();
         if (!voucher.isActive()) {
-            return "Voucher is inactive.";
+            return "Voucher đang bị tắt.";
         }
         if (voucher.getStartDate() != null && now.isBefore(voucher.getStartDate())) {
-            return "Voucher is not active yet.";
+            return "Voucher chưa đến thời gian sử dụng.";
         }
         if (voucher.getEndDate() != null && now.isAfter(voucher.getEndDate())) {
-            return "Voucher has expired.";
+            return "Voucher đã hết hạn.";
         }
         if (voucher.getUsageLimit() != null && voucher.getUsedCount() != null
                 && voucher.getUsedCount() >= voucher.getUsageLimit()) {
-            return "Voucher usage limit has been reached.";
+            return "Voucher đã hết lượt sử dụng.";
         }
         if (voucher.getMinOrderAmount() != null && subtotal.compareTo(voucher.getMinOrderAmount()) < 0) {
-            return "Cart subtotal does not meet the voucher minimum order amount.";
+            return "Tạm tính giỏ hàng chưa đạt điều kiện tối thiểu của voucher.";
         }
         if (calculateDiscount(voucher, subtotal).signum() <= 0) {
-            return "Voucher discount is not valid for this cart.";
+            return "Voucher không hợp lệ với giỏ hàng hiện tại.";
         }
         return null;
     }
