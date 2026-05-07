@@ -4,19 +4,19 @@ import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import util.FileStorageService;
 
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 
 @WebServlet("/uploads/*")
 public class ImageServlet extends HttpServlet {
     
     // Thư mục uploads nằm ở thư mục gốc của project (cùng cấp với src)
-    private final Path rootLocation = Paths.get("c:/Users/phant/BTL_NMCNPM/BE/backend/uploads");
+    private final Path rootLocation = FileStorageService.uploadRootLocation();
 
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException {
@@ -28,7 +28,12 @@ public class ImageServlet extends HttpServlet {
 
         // Bỏ dấu gạch chéo đầu tiên
         filename = filename.substring(1);
-        File file = rootLocation.resolve(filename).toFile();
+        Path filePath = rootLocation.resolve(filename).normalize().toAbsolutePath();
+        if (!filePath.startsWith(rootLocation)) {
+            resp.sendError(HttpServletResponse.SC_BAD_REQUEST, "Invalid file path");
+            return;
+        }
+        File file = filePath.toFile();
 
         if (!file.exists()) {
             resp.sendError(HttpServletResponse.SC_NOT_FOUND, "Image not found");

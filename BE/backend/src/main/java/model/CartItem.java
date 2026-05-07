@@ -6,6 +6,7 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
+import java.math.BigDecimal;
 
 @Entity
 @Table(
@@ -34,6 +35,13 @@ public class CartItem {
     @Column(nullable = false)
     private Integer quantity;
 
+    @Transient
+    private BigDecimal unitPrice;
+
+    @Transient
+    @Builder.Default
+    private BigDecimal lineTotal = BigDecimal.ZERO;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
@@ -41,4 +49,21 @@ public class CartItem {
     @UpdateTimestamp
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
+
+    /**
+     * Tinh thanh tien cho dung mot dong gio hang theo so do tuan tu:
+     * CartItem.calculateLineTotal() = don gia hien tai cua Product * so luong.
+     */
+    public BigDecimal calculateLineTotal() {
+        BigDecimal currentUnitPrice = unitPrice;
+        if (currentUnitPrice == null && product != null) {
+            currentUnitPrice = product.getPrice();
+        }
+        if (currentUnitPrice == null || quantity == null) {
+            lineTotal = BigDecimal.ZERO;
+            return lineTotal;
+        }
+        lineTotal = currentUnitPrice.multiply(BigDecimal.valueOf(quantity));
+        return lineTotal;
+    }
 }

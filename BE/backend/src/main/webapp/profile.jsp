@@ -40,6 +40,6 @@
       </form>
     </div>
   </main>
-  <script src="js/app.js"></script>
+  <script src="js/app.js?v=2"></script>
 </body>
 </html>

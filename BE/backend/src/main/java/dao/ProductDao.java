@@ -17,10 +17,36 @@ public class ProductDao extends BaseDao<Product> {
     public Optional<Product> findWithDetailsById(Long id) {
         try (Session session = openSession()) {
             Query<Product> q = session.createQuery(
-                    "FROM Product p LEFT JOIN FETCH p.images LEFT JOIN FETCH p.specification " +
+                    "SELECT DISTINCT p FROM Product p LEFT JOIN FETCH p.images LEFT JOIN FETCH p.specification " +
                     "LEFT JOIN FETCH p.brand LEFT JOIN FETCH p.category WHERE p.id = :id", Product.class);
             q.setParameter("id", id);
             return q.uniqueResultOptional();
+        }
+    }
+
+    /**
+     * Ten ham theo so do thiet ke: ProductDAO.getProductById(productId).
+     * Lay san pham kem anh, cau hinh, thuong hieu va danh muc de hien thi gio hang.
+     */
+    public Optional<Product> getProductById(Long productId) {
+        return findWithDetailsById(productId);
+    }
+
+    /**
+     * Ten ham theo so do thiet ke: ProductDAO.checkStock(productId, quantity).
+     * Tra ve true khi san pham con ton tai va so luong yeu cau khong vuot ton kho.
+     */
+    public boolean checkStock(Long productId, int quantity) {
+        return getStock(productId) >= quantity;
+    }
+
+    public int getStock(Long productId) {
+        try (Session session = openSession()) {
+            Integer stock = session.createQuery(
+                            "SELECT p.stock FROM Product p WHERE p.id = :productId", Integer.class)
+                    .setParameter("productId", productId)
+                    .uniqueResult();
+            return stock != null ? stock : 0;
         }
     }
 
