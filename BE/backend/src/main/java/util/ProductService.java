@@ -6,6 +6,7 @@ import model.ProductImage;
 import model.ProductSpecification;
 import util.ApiException;
 import java.math.BigDecimal;
+import java.util.HashSet;
 import java.util.List;
 
 public class ProductService {
@@ -39,6 +40,7 @@ public class ProductService {
         product.setBrand(details.getBrand());
         product.setCategory(details.getCategory());
         if (details.getImages() != null && !details.getImages().isEmpty()) {
+            if (product.getImages() == null) product.setImages(new HashSet<>());
             product.getImages().clear();
             for (ProductImage img : details.getImages()) { img.setProduct(product); product.getImages().add(img); }
         }
