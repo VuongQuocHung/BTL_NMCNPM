@@ -287,6 +287,20 @@ input:focus, select:focus, textarea:focus {
   border-top: 1px solid #f1f5f9;
 }
 
+.compare-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.compare-toggle input {
+  width: auto;
+  accent-color: var(--brand);
+}
+
 .price {
   color: var(--brand);
   font-size: 20px;
@@ -633,6 +647,23 @@ th {
 }
 
 .hidden { display: none !important; }
+
+.compare-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+
+.compare-table td,
+.compare-table th {
+  white-space: nowrap;
+}
+
+.compare-diff td {
+  background: #fff7ed;
+}
 
 .footer {
   width: min(1180px, 92vw);
