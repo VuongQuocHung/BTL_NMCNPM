@@ -61,7 +61,19 @@
           <div class="actions">
             <span id="compareCount" class="muted">0/3 đã chọn</span>
             <button id="compareBtn" class="button" type="button" disabled>So sánh</button>
+            <button id="compareResetBtn" class="button" type="button">Xóa chọn</button>
           </div>
+        </div>
+        <div class="panel" style="margin-bottom: 14px;">
+          <form id="productSortForm" class="form" style="grid-template-columns: repeat(2, minmax(0, 1fr));">
+            <label>Sắp xếp theo giá
+              <select name="sortDir" id="priceSort">
+                <option value="">Mặc định</option>
+                <option value="asc">Từ thấp đến cao</option>
+                <option value="desc">Từ cao đến thấp</option>
+              </select>
+            </label>
+          </form>
         </div>
         <p id="productNotice" class="notice"></p>
         <div id="productList" class="product-grid"></div>

@@ -257,6 +257,11 @@ const App = (() => {
     ["name", "brandId", "categoryId", "minPrice", "maxPrice"].forEach((key) => {
       if (params.get(key)) query.set(key, params.get(key));
     });
+    const sortDir = params.get("sortDir");
+    if (sortDir) {
+      query.set("sortBy", "price");
+      query.set("sortDir", sortDir);
+    }
     query.set("page", page);
     query.set("size", "8");
 
@@ -272,6 +277,28 @@ const App = (() => {
         Object.entries(data).forEach(([key, value]) => {
           if (String(value).trim()) next.set(key, value);
         });
+        const selectedSort = params.get("sortDir");
+        if (selectedSort) {
+          next.set("sortBy", "price");
+          next.set("sortDir", selectedSort);
+        }
+        location.href = `products.jsp?${next.toString()}`;
+      });
+    }
+
+    const sortSelect = $("#priceSort");
+    if (sortSelect) {
+      sortSelect.value = params.get("sortDir") || "";
+      sortSelect.addEventListener("change", () => {
+        const next = new URLSearchParams(location.search);
+        if (sortSelect.value) {
+          next.set("sortBy", "price");
+          next.set("sortDir", sortSelect.value);
+        } else {
+          next.delete("sortBy");
+          next.delete("sortDir");
+        }
+        next.set("page", "0");
         location.href = `products.jsp?${next.toString()}`;
       });
     }
@@ -298,6 +325,7 @@ const App = (() => {
     const compareNotice = $("#compareNotice");
     const compareCount = $("#compareCount");
     const compareBtn = $("#compareBtn");
+    const compareResetBtn = $("#compareResetBtn");
 
     if (compareState.ids.size === 0) {
       loadCompareIds().forEach((id) => compareState.ids.add(id));
@@ -350,6 +378,19 @@ const App = (() => {
         saveCompareIds(compareState.ids);
         const ids = Array.from(compareState.ids).join(",");
         location.href = `compare.jsp?ids=${ids}`;
+      };
+    }
+
+    if (compareResetBtn) {
+      compareResetBtn.onclick = () => {
+        compareState.ids.clear();
+        compareState.categoryId = null;
+        saveCompareIds(compareState.ids);
+        $$(`[data-compare-id]`, root).forEach((input) => {
+          input.checked = false;
+        });
+        setNotice(compareNotice, "Đã xóa lựa chọn.", "success");
+        updateCompareUi();
       };
     }
 
