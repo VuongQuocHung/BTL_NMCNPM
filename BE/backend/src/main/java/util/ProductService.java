@@ -23,6 +23,10 @@ public class ProductService {
                 .orElseThrow(() -> ApiException.notFound("Product not found"));
     }
 
+    public List<Product> getProductsByIds(List<Long> ids) {
+        return productDao.findByIdsWithDetails(ids);
+    }
+
     public Product createProduct(Product product) {
         if (product.getImages() != null) product.getImages().forEach(img -> img.setProduct(product));
         if (product.getSpecification() != null) product.getSpecification().setProduct(product);

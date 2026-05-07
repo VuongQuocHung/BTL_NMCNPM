@@ -53,6 +53,16 @@
       </aside>
 
       <section>
+        <div id="compareBar" class="panel compare-bar">
+          <div>
+            <strong>So sánh sản phẩm</strong>
+            <p id="compareNotice" class="notice"></p>
+          </div>
+          <div class="actions">
+            <span id="compareCount" class="muted">0/3 đã chọn</span>
+            <button id="compareBtn" class="button" type="button" disabled>So sánh</button>
+          </div>
+        </div>
         <p id="productNotice" class="notice"></p>
         <div id="productList" class="product-grid"></div>
         <div class="pager">

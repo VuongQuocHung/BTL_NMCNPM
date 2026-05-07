@@ -24,6 +24,8 @@ const App = (() => {
   const params = new URLSearchParams(location.search);
   let currentCartState = null;
   let activeVouchers = [];
+  const compareState = { ids: new Set(), categoryId: null };
+  const compareStorageKey = "compare.ids";
   const money = (value) => new Intl.NumberFormat("vi-VN", {
     style: "currency",
     currency: "VND",
@@ -102,6 +104,17 @@ const App = (() => {
     return Object.fromEntries(new FormData(form).entries());
   }
 
+  function loadCompareIds() {
+    const raw = localStorage.getItem(compareStorageKey);
+    if (!raw) return [];
+    return raw.split(",").map((x) => Number(x)).filter((x) => Number.isFinite(x) && x > 0);
+  }
+
+  function saveCompareIds(ids) {
+    const value = Array.from(ids).join(",");
+    localStorage.setItem(compareStorageKey, value);
+  }
+
   function requireLogin() {
     if (!token()) {
       location.href = "login.jsp";
@@ -144,11 +157,17 @@ const App = (() => {
 
   function productCard(product) {
     const specs = product.specification || {};
+    const stock = product.stock ?? 0;
+    const outOfStock = stock <= 0;
     return `
       <article class="card">
         <a class="product-image" href="product.jsp?id=${product.id}">
           <img src="${imageUrl(firstImage(product))}" alt="${html(product.name || "Sản phẩm")}">
         </a>
+        <label class="compare-toggle">
+          <input type="checkbox" data-compare-id="${product.id}" data-compare-category="${product.category?.id || ""}">
+          <span>So sánh</span>
+        </label>
         <div>
           <h3><a href="product.jsp?id=${product.id}">${html(product.name || "Không tên")}</a></h3>
           <p class="muted">${html(product.brand?.name || "")} ${product.category?.name ? "- " + html(product.category.name) : ""}</p>
@@ -160,10 +179,12 @@ const App = (() => {
         </div>
         <div class="card-footer">
           <div class="price">${money(product.price)}</div>
-          <button class="button primary full" data-add-cart="${product.id}">
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 8px;"><circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path></svg>
-            Thêm vào giỏ
-          </button>
+          ${outOfStock ? `<button class="button full" disabled>Hết hàng</button>` : `
+            <button class="button primary full" data-add-cart="${product.id}">
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 8px;"><circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path></svg>
+              Thêm vào giỏ
+            </button>
+          `}
         </div>
       </article>
     `;
@@ -266,10 +287,157 @@ const App = (() => {
       $("#prevPage").onclick = () => changePage(page - 1);
       $("#nextPage").onclick = () => changePage(page + 1);
       bindAddCart($("#productList"));
+      bindCompare($("#productList"));
       setNotice("#productNotice", "");
     } catch (error) {
       setNotice("#productNotice", error.message, "error");
     }
+  }
+
+  function bindCompare(root = document) {
+    const compareNotice = $("#compareNotice");
+    const compareCount = $("#compareCount");
+    const compareBtn = $("#compareBtn");
+
+    if (compareState.ids.size === 0) {
+      loadCompareIds().forEach((id) => compareState.ids.add(id));
+    }
+
+    const updateCompareUi = () => {
+      const count = compareState.ids.size;
+      if (compareCount) compareCount.textContent = `${count}/3 đã chọn`;
+      if (compareBtn) compareBtn.disabled = count < 2;
+      if (compareNotice && count === 0) setNotice(compareNotice, "");
+    };
+
+    $$(`[data-compare-id]`, root).forEach((input) => {
+      const id = Number(input.dataset.compareId);
+      const categoryId = Number(input.dataset.compareCategory || 0);
+      input.checked = compareState.ids.has(id);
+      if (input.checked && !compareState.categoryId) {
+        compareState.categoryId = categoryId || null;
+      }
+      input.addEventListener("change", () => {
+        if (input.checked) {
+          if (compareState.ids.size >= 3) {
+            input.checked = false;
+            setNotice(compareNotice, "Chỉ được phép so sánh tối đa 3 sản phẩm cùng lúc", "error");
+            return;
+          }
+          if (compareState.categoryId && compareState.categoryId !== categoryId) {
+            input.checked = false;
+            setNotice(compareNotice, "Vui lòng chọn các sản phẩm cùng loại để thực hiện so sánh", "error");
+            return;
+          }
+          compareState.ids.add(id);
+          compareState.categoryId = compareState.categoryId || categoryId;
+        } else {
+          compareState.ids.delete(id);
+          if (compareState.ids.size === 0) compareState.categoryId = null;
+        }
+        setNotice(compareNotice, "");
+        saveCompareIds(compareState.ids);
+        updateCompareUi();
+      });
+    });
+
+    if (compareBtn) {
+      compareBtn.onclick = () => {
+        if (compareState.ids.size < 2) {
+          setNotice(compareNotice, "Vui lòng chọn ít nhất 2 sản phẩm", "error");
+          return;
+        }
+        saveCompareIds(compareState.ids);
+        const ids = Array.from(compareState.ids).join(",");
+        location.href = `compare.jsp?ids=${ids}`;
+      };
+    }
+
+    updateCompareUi();
+  }
+
+  async function initCompare() {
+    let ids = params.get("ids");
+    if (!ids) {
+      const stored = loadCompareIds();
+      if (stored.length >= 2) {
+        ids = stored.join(",");
+      } else {
+        setNotice("#compareNotice", "Thiếu danh sách sản phẩm để so sánh.", "error");
+        return;
+      }
+    }
+    setNotice("#compareNotice", "Đang tải dữ liệu so sánh...");
+    try {
+      const result = await request(`/api/products/compare?ids=${encodeURIComponent(ids)}`);
+      const idList = ids.split(",").map((x) => Number(x)).filter((x) => Number.isFinite(x) && x > 0);
+      const products = Array.isArray(result) ? result : pageContent(result);
+      const filtered = idList.length ? products.filter((p) => idList.includes(p.id)) : products;
+      saveCompareIds(idList);
+      renderCompare(filtered);
+      setNotice("#compareNotice", "");
+    } catch (error) {
+      setNotice("#compareNotice", error.message, "error");
+    }
+  }
+
+  function renderCompare(products) {
+    const container = $("#compareTable");
+    if (!container) return;
+    if (!products?.length) {
+      container.innerHTML = `<div class="panel">Không có sản phẩm để so sánh.</div>`;
+      return;
+    }
+
+    const specs = [
+      { key: "cpu", label: "CPU" },
+      { key: "ram", label: "RAM" },
+      { key: "storage", label: "Ổ cứng" },
+      { key: "vga", label: "Card đồ họa" },
+      { key: "screen", label: "Màn hình" },
+      { key: "os", label: "Hệ điều hành" },
+      { key: "battery", label: "Pin" },
+      { key: "weight", label: "Trọng lượng" }
+    ];
+
+    const header = `
+      <tr>
+        <th>Thông tin</th>
+        ${products.map((p) => `<th>${html(p.name || "Sản phẩm")}</th>`).join("")}
+      </tr>
+    `;
+
+    const rows = [
+      { label: "Giá", values: products.map((p) => money(p.price)) },
+      { label: "Thương hiệu", values: products.map((p) => html(p.brand?.name || "")) },
+      { label: "Danh mục", values: products.map((p) => html(p.category?.name || "")) }
+    ].map((row) => compareRow(row.label, row.values));
+
+    specs.forEach((spec) => {
+      const values = products.map((p) => html(p.specification?.[spec.key] || ""));
+      rows.push(compareRow(spec.label, values));
+    });
+
+    container.innerHTML = `
+      <div class="table-wrap compare-table">
+        <table>
+          <thead>${header}</thead>
+          <tbody>${rows.join("")}</tbody>
+        </table>
+      </div>
+    `;
+  }
+
+  function compareRow(label, values) {
+    const normalized = values.map((v) => String(v || "").trim());
+    const unique = new Set(normalized.filter((v) => v));
+    const hasDiff = unique.size > 1;
+    return `
+      <tr class="${hasDiff ? "compare-diff" : ""}">
+        <td><strong>${html(label)}</strong></td>
+        ${values.map((v) => `<td>${v || "-"}</td>`).join("")}
+      </tr>
+    `;
   }
 
   function changePage(page) {
@@ -286,6 +454,8 @@ const App = (() => {
 
     const product = await request(`/api/products/${id}`);
     const specs = product.specification || {};
+    const stock = product.stock ?? 0;
+    const outOfStock = stock <= 0;
     $("#productDetail").innerHTML = `
       <div class="detail-image">
         <img src="${imageUrl(firstImage(product))}" alt="${html(product.name)}">
@@ -294,13 +464,13 @@ const App = (() => {
         <p class="eyebrow">${html(product.brand?.name || "Laptop")}</p>
         <h1>${html(product.name)}</h1>
         <p class="price">${money(product.price)}</p>
-        <p class="muted">Còn ${product.stock ?? 0} sản phẩm trong kho</p>
+        <p class="muted">${outOfStock ? "Hết hàng" : `Còn ${stock} sản phẩm trong kho`}</p>
         <p>${html(product.description || "Chưa có mô tả.")}</p>
         <div class="specs">
           ${Object.entries(specs).filter(([, v]) => v).map(([k, v]) => `<span class="chip">${html(k)}: ${html(v)}</span>`).join("")}
         </div>
         <div class="actions">
-          <button class="button primary" data-add-cart="${product.id}">Thêm vào giỏ</button>
+          ${outOfStock ? `<button class="button" disabled>Hết hàng</button>` : `<button class="button primary" data-add-cart="${product.id}">Thêm vào giỏ</button>`}
           <a class="button" href="cart.jsp">Đến giỏ hàng</a>
         </div>
       </div>
@@ -975,6 +1145,7 @@ const App = (() => {
     try {
       if (page === "home") await initHome();
       if (page === "products") await initProducts();
+      if (page === "compare") await initCompare();
       if (page === "product-detail") await initProductDetail();
       if (page === "cart") await initCart();
       if (page === "checkout") await initCheckout();
