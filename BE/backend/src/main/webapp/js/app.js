@@ -9,15 +9,52 @@ const App = (() => {
     </svg>
   `);
 
-  const apiBase = () => {
-    const saved = localStorage.getItem("api.base");
-    if (saved) return saved.replace(/\/$/, "");
-    // Auto-detect context path from current URL
+  const contextPath = () => {
+    const script = document.currentScript
+      || Array.from(document.scripts).find((item) => item.src && item.src.includes("/js/app.js"));
+
+    // The app can be deployed as /backend, so derive the context from /backend/js/app.js.
+    if (script?.src) {
+      const scriptPath = new URL(script.src, location.href).pathname;
+      const marker = "/js/app.js";
+      const markerIndex = scriptPath.lastIndexOf(marker);
+      if (markerIndex >= 0) {
+        return scriptPath.substring(0, markerIndex);
+      }
+    }
+
     const path = location.pathname;
     const jspIndex = path.lastIndexOf(".jsp");
-    const contextPath = jspIndex >= 0 ? path.substring(0, path.lastIndexOf("/", jspIndex)) : path.replace(/\/$/, "");
-    return location.origin + contextPath;
+    if (jspIndex >= 0) {
+      return path.substring(0, path.lastIndexOf("/", jspIndex));
+    }
+    return path.replace(/\/$/, "");
   };
+
+  const apiBase = () => {
+    const detectedContext = contextPath();
+    const detectedBase = `${location.origin}${detectedContext}`;
+    const saved = localStorage.getItem("api.base");
+
+    if (!saved) return detectedBase;
+
+    try {
+      const savedUrl = new URL(saved, location.origin);
+      const savedPath = savedUrl.pathname.replace(/\/$/, "");
+
+      // Ignore stale same-origin values like http://localhost:8080 or /api when the JSP runs under /backend.
+      if (savedUrl.origin === location.origin && savedPath !== detectedContext) {
+        localStorage.setItem("api.base", detectedBase);
+        return detectedBase;
+      }
+
+      return `${savedUrl.origin}${savedPath}`;
+    } catch {
+      localStorage.removeItem("api.base");
+      return detectedBase;
+    }
+  };
+  console.log("API Base URL:", apiBase());
 
   const $ = (selector, root = document) => root.querySelector(selector);
   const $$ = (selector, root = document) => Array.from(root.querySelectorAll(selector));
@@ -169,18 +206,19 @@ const App = (() => {
     `;
   }
 
-  function bindAddCart(root = document) {
+  // UC-2.1: ProductListView/ProductDetailView gui request them san pham voi quantity mac dinh = 1.
+  function bindAddProductToCart(root = document) {
     if (!root) return;
     $$("[data-add-cart]", root).forEach((button) => {
       button.addEventListener("click", async () => {
         button.disabled = true;
         try {
-          await request("/api/cart/items", {
+          const updatedCart = await request("/api/cart/items", {
             method: "POST",
             body: { productId: Number(button.dataset.addCart), quantity: 1 }
           });
           await refreshCartCount();
-          button.textContent = "Đã thêm";
+          button.textContent = updatedCart?.message || "Đã thêm";
           setTimeout(() => button.textContent = "Thêm vào giỏ", 1200);
         } catch (error) {
           alert(error.message);
@@ -205,7 +243,7 @@ const App = (() => {
       </a>
     `).join("");
     $("#homeProducts").innerHTML = pageContent(products).slice(0, 8).map(productCard).join("");
-    bindAddCart($("#homeProducts"));
+    bindAddProductToCart($("#homeProducts"));
   }
 
   async function loadFilterOptions() {
@@ -265,7 +303,7 @@ const App = (() => {
       $("#nextPage").disabled = page >= (result.totalPages || 1) - 1;
       $("#prevPage").onclick = () => changePage(page - 1);
       $("#nextPage").onclick = () => changePage(page + 1);
-      bindAddCart($("#productList"));
+      bindAddProductToCart($("#productList"));
       setNotice("#productNotice", "");
     } catch (error) {
       setNotice("#productNotice", error.message, "error");
@@ -305,7 +343,7 @@ const App = (() => {
         </div>
       </div>
     `;
-    bindAddCart($("#productDetail"));
+    bindAddProductToCart($("#productDetail"));
     await loadReviews(id);
 
     const reviewForm = $("#reviewForm");
@@ -344,15 +382,18 @@ const App = (() => {
     `).join("") || `<div class="panel">Chưa có đánh giá.</div>`;
   }
 
-  async function initCart() {
+  // UC-2.4: CartDetailView lay gio hang hien tai va hien thi lai toan bo CartItem.
+  async function initCartDetailView() {
     const cart = await request("/api/cart");
-    renderCart(cart);
-    await loadAvailableVouchers();
+    renderCartDetailView(cart);
+    await showApplyVoucherView();
     const clearCartBtn = $("#clearCartBtn");
     if (clearCartBtn) {
       clearCartBtn.addEventListener("click", async () => {
-        await request("/api/cart/items", { method: "DELETE" });
-        renderCart(await request("/api/cart"));
+        if (!confirm("Bạn chắc chắn muốn xóa tất cả sản phẩm trong giỏ hàng?")) return;
+        const updated = await request("/api/cart/items", { method: "DELETE" });
+        renderCartDetailView(updated);
+        await showApplyVoucherView();
         await refreshCartCount();
       });
     }
@@ -365,45 +406,48 @@ const App = (() => {
           setNotice("#cartNotice", "Hãy nhập hoặc chọn một mã giảm giá.", "error");
           return;
         }
-        await applyVoucherCode(code);
+        await applySelectedVoucher(code);
       });
     }
     const removeVoucherBtn = $("#removeVoucherBtn");
     if (removeVoucherBtn) {
       removeVoucherBtn.addEventListener("click", async () => {
         const updated = await request("/api/cart/voucher", { method: "DELETE" });
-        renderCart(updated);
+        renderCartDetailView(updated);
+        await showApplyVoucherView();
         setNotice("#cartNotice", updated.message || "Đã gỡ voucher.", "success");
       });
     }
   }
 
-  async function loadAvailableVouchers() {
+  // UC-2.5: ApplyVoucherView hien thi voucher kem trang thai du/khong du dieu kien.
+  async function showApplyVoucherView() {
     const box = $("#availableVouchers");
     if (!box) return;
     try {
-      const result = await request("/api/vouchers/active?size=20&sortBy=id&sortDir=desc");
+      const result = await request("/api/cart/vouchers");
       activeVouchers = pageContent(result);
-      renderAvailableVouchers();
+      renderApplyVoucherView();
     } catch {
       activeVouchers = [];
       box.innerHTML = "";
     }
   }
 
-  function renderAvailableVouchers() {
+  function renderApplyVoucherView() {
     const box = $("#availableVouchers");
     if (!box) return;
     const cart = currentCartState || {};
     const subtotal = Number(cart.subtotal || 0);
     box.innerHTML = activeVouchers.map((voucher) => {
       const minAmount = Number(voucher.minOrderAmount || 0);
-      const disabled = minAmount > subtotal;
+      const disabled = voucher.eligible === false || minAmount > subtotal;
       const selected = cart.voucherCode === voucher.code;
       const meta = [
         voucherDiscountText(voucher),
         minAmount ? `đơn từ ${money(minAmount)}` : "không yêu cầu đơn tối thiểu",
-        voucher.endDate ? `hết hạn ${formatDateTime(voucher.endDate)}` : ""
+        voucher.endDate ? `hết hạn ${formatDateTime(voucher.endDate)}` : "",
+        voucher.eligible === false ? voucher.eligibilityMessage : ""
       ].filter(Boolean).join(" • ");
       return `
         <div class="voucher-option ${selected ? "selected" : ""}">
@@ -412,27 +456,28 @@ const App = (() => {
             <span>${html(meta)}</span>
           </div>
           <button class="button" type="button" data-use-voucher="${html(voucher.code)}" ${disabled || selected ? "disabled" : ""}>
-            ${disabled ? "Chưa đủ" : selected ? "Đã dùng" : "Dùng mã"}
+            ${disabled ? "Không đủ điều kiện" : selected ? "Đã dùng" : "Áp dụng"}
           </button>
         </div>
       `;
     }).join("") || `<p class="muted">Hiện chưa có voucher đang bật.</p>`;
     $$("[data-use-voucher]", box).forEach((button) => {
-      button.onclick = () => applyVoucherCode(button.dataset.useVoucher);
+      button.onclick = () => applySelectedVoucher(button.dataset.useVoucher);
     });
   }
 
-  async function applyVoucherCode(code) {
+  async function applySelectedVoucher(code) {
     try {
       const updated = await request("/api/cart/voucher", { method: "POST", body: { code } });
-      renderCart(updated);
+      renderCartDetailView(updated);
+      await showApplyVoucherView();
       setNotice("#cartNotice", updated.message || "Đã áp dụng voucher.", "success");
     } catch (error) {
       setNotice("#cartNotice", error.message, "error");
     }
   }
 
-  function renderCart(cart) {
+  function renderCartDetailView(cart) {
     currentCartState = cart;
     $("#summaryItems").textContent = cart.totalItems || 0;
     $("#summarySubtotal").textContent = money(cart.subtotal);
@@ -454,7 +499,7 @@ const App = (() => {
     if (removeVoucherBtn) {
       removeVoucherBtn.classList.toggle("hidden", !cart.voucherCode);
     }
-    renderAvailableVouchers();
+    renderApplyVoucherView();
 
     const items = cart.items || [];
     $("#cartItems").innerHTML = items.map((item) => `
@@ -479,30 +524,40 @@ const App = (() => {
       </article>
     `).join("") || `<div class="panel">Giỏ hàng đang trống. <a href="products.jsp">Mua hàng ngay</a></div>`;
 
-    bindCartEvents();
+    bindCartDetailEvents();
   }
 
-  function bindCartEvents() {
-    $$("[data-cart-minus]").forEach((button) => button.onclick = () => changeCartQty(button.dataset.cartMinus, -1));
-    $$("[data-cart-plus]").forEach((button) => button.onclick = () => changeCartQty(button.dataset.cartPlus, 1));
-    $$("[data-cart-remove]").forEach((button) => button.onclick = () => removeCartItem(button.dataset.cartRemove));
-    $$("[data-cart-qty]").forEach((input) => input.onchange = () => setCartQty(input.dataset.cartQty, input.value));
+  function bindCartDetailEvents() {
+    $$("[data-cart-minus]").forEach((button) => button.onclick = () => changeCartItemQuantity(button.dataset.cartMinus, -1));
+    $$("[data-cart-plus]").forEach((button) => button.onclick = () => changeCartItemQuantity(button.dataset.cartPlus, 1));
+    $$("[data-cart-remove]").forEach((button) => button.onclick = () => deleteCartItemFromDetailView(button.dataset.cartRemove));
+    $$("[data-cart-qty]").forEach((input) => input.onchange = () => updateCartItemQuantity(input.dataset.cartQty, input.value));
   }
 
-  async function setCartQty(productId, quantity) {
-    await request(`/api/cart/items/${productId}`, { method: "PUT", body: { quantity: Number(quantity) } });
-    renderCart(await request("/api/cart"));
-    await refreshCartCount();
+  // UC-2.3: CartDetailView gui productId va newQuantity de CartItem kiem tra ton kho roi tinh lai thanh tien.
+  async function updateCartItemQuantity(productId, quantity) {
+    try {
+      const updated = await request(`/api/cart/items/${productId}`, { method: "PUT", body: { quantity: Number(quantity) } });
+      renderCartDetailView(updated);
+      await showApplyVoucherView();
+      await refreshCartCount();
+      if (updated.message) setNotice("#cartNotice", updated.message, "success");
+    } catch (error) {
+      setNotice("#cartNotice", error.message, "error");
+      renderCartDetailView(await request("/api/cart"));
+    }
   }
 
-  async function changeCartQty(productId, change) {
+  async function changeCartItemQuantity(productId, change) {
     const input = $(`[data-cart-qty="${productId}"]`);
-    await setCartQty(productId, Math.max(1, Number(input.value || 1) + change));
+    await updateCartItemQuantity(productId, Math.max(1, Number(input.value || 1) + change));
   }
 
-  async function removeCartItem(productId) {
-    await request(`/api/cart/items/${productId}`, { method: "DELETE" });
-    renderCart(await request("/api/cart"));
+  // UC-2.2: CartDetailView gui productId, Cart tim CartItem va xoa khoi danh sach.
+  async function deleteCartItemFromDetailView(productId) {
+    const updated = await request(`/api/cart/items/${productId}`, { method: "DELETE" });
+    renderCartDetailView(updated);
+    await showApplyVoucherView();
     await refreshCartCount();
   }
 
@@ -976,7 +1031,7 @@ const App = (() => {
       if (page === "home") await initHome();
       if (page === "products") await initProducts();
       if (page === "product-detail") await initProductDetail();
-      if (page === "cart") await initCart();
+      if (page === "cart") await initCartDetailView();
       if (page === "checkout") await initCheckout();
       if (page === "login") initLogin();
       if (page === "register") initRegister();

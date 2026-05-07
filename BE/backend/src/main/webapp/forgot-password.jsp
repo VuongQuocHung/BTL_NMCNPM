@@ -33,6 +33,6 @@
       <div class="auth-links"><a href="login.jsp">Quay lại đăng nhập</a></div>
     </section>
   </main>
-  <script src="js/app.js"></script>
+  <script src="js/app.js?v=2"></script>
 </body>
 </html>

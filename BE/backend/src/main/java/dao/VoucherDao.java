@@ -17,6 +17,14 @@ public class VoucherDao extends BaseDao<Voucher> {
         }
     }
 
+    public Optional<Voucher> getVoucherByCode(String code) {
+        return findByCodeIgnoreCase(code);
+    }
+
+    public Optional<Voucher> getVoucherById(Long voucherId) {
+        return findById(voucherId);
+    }
+
     public boolean existsByCodeIgnoreCase(String code) {
         try (Session s = openSession()) {
             Long count = s.createQuery("SELECT COUNT(v) FROM Voucher v WHERE LOWER(v.code) = :code", Long.class)
@@ -50,5 +58,13 @@ public class VoucherDao extends BaseDao<Voucher> {
                     ("desc".equalsIgnoreCase(sortDir) ? "DESC" : "ASC");
             return s.createQuery(hql, Voucher.class).setParameter("now", now).list();
         }
+    }
+
+    /**
+     * Ten ham theo so do thiet ke: VoucherDAO.getVouchersForCustomer(userId).
+     * He thong hien chua gan voucher theo tung khach, nen tra ve cac voucher dang kha dung.
+     */
+    public List<Voucher> getVouchersForCustomer(Long userId) {
+        return findActiveVouchers("id", "desc");
     }
 }

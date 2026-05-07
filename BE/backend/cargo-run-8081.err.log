@@ -1,0 +1,8 @@
+Exception in thread "Thread-2" java.lang.NoClassDefFoundError: org/codehaus/cargo/container/spi/jvm/DefaultJvmLauncher
+	at org.codehaus.cargo.maven3.ContainerRunMojo$1.run(ContainerRunMojo.java:82)
+Caused by: java.lang.ClassNotFoundException: org.codehaus.cargo.container.spi.jvm.DefaultJvmLauncher
+	at org.codehaus.plexus.classworlds.strategy.SelfFirstStrategy.loadClass(SelfFirstStrategy.java:42)
+	at org.codehaus.plexus.classworlds.realm.ClassRealm.unsynchronizedLoadClass(ClassRealm.java:225)
+	at org.codehaus.plexus.classworlds.realm.ClassRealm.loadClass(ClassRealm.java:210)
+	at org.codehaus.plexus.classworlds.realm.ClassRealm.loadClass(ClassRealm.java:205)
+	... 1 more

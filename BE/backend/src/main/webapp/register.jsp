@@ -29,6 +29,6 @@
       <div class="auth-links"><a href="login.jsp">Đã có tài khoản</a></div>
     </form>
   </main>
-  <script src="js/app.js"></script>
+  <script src="js/app.js?v=2"></script>
 </body>
 </html>
