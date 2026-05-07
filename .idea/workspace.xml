@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ArtifactsWorkspaceSettings">
     <artifacts-to-build>
-      <artifact name="backend:war exploded" />
+      <artifact name="backend:war" />
     </artifacts-to-build>
   </component>
   <component name="AutoImportSettings">
@@ -10,22 +10,24 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="5304b202-de3d-4f32-b919-d894656ae9cb" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/.idea/dataSources.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/easycode.ignore" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/compiler.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/compiler.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/encodings.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/encodings.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/dataSources.local.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/dataSources.local.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/dataSources/ed5889f7-fd92-4fd5-a220-de28dbd8a3ff.xml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/dataSources/ed5889f7-fd92-4fd5-a220-de28dbd8a3ff/storage_v2/_src_/schema/information_schema.FNRwLQ.meta" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/dataSources/ed5889f7-fd92-4fd5-a220-de28dbd8a3ff/storage_v2/_src_/schema/mysql.osA4Bg.meta" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/dataSources/ed5889f7-fd92-4fd5-a220-de28dbd8a3ff/storage_v2/_src_/schema/performance_schema.kIw0nw.meta" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/dataSources/ed5889f7-fd92-4fd5-a220-de28dbd8a3ff/storage_v2/_src_/schema/sys.zb4BAA.meta" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/BE/backend/.env.example" beforeDir="false" afterPath="$PROJECT_DIR$/BE/backend/.env.example" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/BE/backend/cargo-run-8081.err.log" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/BE/backend/spring-run-8081.err.log" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/BE/backend/spring-run-8081.out.log" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/BE/backend/src/main/java/controller/OrderServlet.java" beforeDir="false" afterPath="$PROJECT_DIR$/BE/backend/src/main/java/controller/OrderServlet.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/BE/backend/src/main/java/dao/OrderDao.java" beforeDir="false" afterPath="$PROJECT_DIR$/BE/backend/src/main/java/dao/OrderDao.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/BE/backend/src/main/java/dao/ProductDao.java" beforeDir="false" afterPath="$PROJECT_DIR$/BE/backend/src/main/java/dao/ProductDao.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/BE/backend/src/main/java/filter/JwtFilter.java" beforeDir="false" afterPath="$PROJECT_DIR$/BE/backend/src/main/java/filter/JwtFilter.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/BE/backend/src/main/java/model/Order.java" beforeDir="false" afterPath="$PROJECT_DIR$/BE/backend/src/main/java/model/Order.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/BE/backend/src/main/java/model/OrderStatus.java" beforeDir="false" afterPath="$PROJECT_DIR$/BE/backend/src/main/java/model/OrderStatus.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/BE/backend/src/main/java/util/DatabaseConfig.java" beforeDir="false" afterPath="$PROJECT_DIR$/BE/backend/src/main/java/util/DatabaseConfig.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/BE/backend/src/main/java/util/OrderService.java" beforeDir="false" afterPath="$PROJECT_DIR$/BE/backend/src/main/java/util/OrderService.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/BE/backend/src/main/webapp/WEB-INF/web.xml" beforeDir="false" afterPath="$PROJECT_DIR$/BE/backend/src/main/webapp/WEB-INF/web.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/BE/backend/src/main/webapp/checkout.jsp" beforeDir="false" afterPath="$PROJECT_DIR$/BE/backend/src/main/webapp/checkout.jsp" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/BE/backend/src/main/webapp/index.jsp" beforeDir="false" afterPath="$PROJECT_DIR$/BE/backend/src/main/webapp/index.jsp" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/BE/backend/src/main/webapp/js/app.js" beforeDir="false" afterPath="$PROJECT_DIR$/BE/backend/src/main/webapp/js/app.js" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -36,23 +38,24 @@
   <component name="CopilotPersistence">
     <persistenceIdMap>
       <entry key="_C:/Users/ADMINS/Documents/ky2/CNPM/BTL_NMCNPM3" value="3D6KZ3xkStZvnbXAeQahZvVImpB" />
+      <entry key="_D:/XboxGames/BTL_NMCNPM3" value="3DPBjkyG3fX5GzD2TeAuJQvorra" />
     </persistenceIdMap>
   </component>
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
   </component>
-  <component name="GitHubPullRequestSearchHistory"><![CDATA[{
-  "lastFilter": {
-    "state": "OPEN",
-    "assignee": "lptt3001"
+  <component name="GitHubPullRequestSearchHistory">{
+  &quot;lastFilter&quot;: {
+    &quot;state&quot;: &quot;OPEN&quot;,
+    &quot;assignee&quot;: &quot;lptt3001&quot;
   }
-}]]></component>
-  <component name="GithubPullRequestsUISettings"><![CDATA[{
-  "selectedUrlAndAccountId": {
-    "url": "https://github.com/VuongQuocHung/BTL_NMCNPM.git",
-    "accountId": "66b9039f-f84f-48f1-a2a5-0daad41c977d"
+}</component>
+  <component name="GithubPullRequestsUISettings">{
+  &quot;selectedUrlAndAccountId&quot;: {
+    &quot;url&quot;: &quot;https://github.com/VuongQuocHung/BTL_NMCNPM.git&quot;,
+    &quot;accountId&quot;: &quot;66b9039f-f84f-48f1-a2a5-0daad41c977d&quot;
   }
-}]]></component>
+}</component>
   <component name="LogFilters">
     <option name="FILTER_ERRORS" value="false" />
     <option name="FILTER_WARNINGS" value="false" />
@@ -89,11 +92,11 @@
     "SHARE_PROJECT_CONFIGURATION_FILES": "true",
     "Tomcat Server.Tomcat 9.0.115.executor": "Run",
     "com.intellij.ml.llm.matterhorn.ej.ui.settings.DefaultModelSelectionForGA.v1": "true",
-    "git-widget-placeholder": "main",
+    "git-widget-placeholder": "trung",
     "ignore.virus.scanning.warn.message": "true",
     "junie.onboarding.icon.badge.shown": "true",
     "kotlin-language-version-configured": "true",
-    "last_opened_file_path": "C:/Users/phant/BTL_NMCNPM",
+    "last_opened_file_path": "D:/XboxGames/BTL_NMCNPM3",
     "node.js.detected.package.eslint": "true",
     "node.js.detected.package.tslint": "true",
     "node.js.selected.package.eslint": "(autodetect)",
@@ -112,9 +115,9 @@
     <configuration name="Tomcat 9.0.115" type="#com.intellij.j2ee.web.tomcat.TomcatRunConfigurationFactory" factoryName="Local" APPLICATION_SERVER_NAME="Tomcat 9.0.115" ALTERNATIVE_JRE_ENABLED="true" ALTERNATIVE_JRE_PATH="17" nameIsGenerated="true">
       <option name="UPDATING_POLICY" value="restart-server" />
       <deployment>
-        <artifact name="backend:war exploded">
+        <artifact name="backend:war">
           <settings>
-            <option name="CONTEXT_PATH" value="/backend_war_exploded" />
+            <option name="CONTEXT_PATH" value="/backend_war" />
           </settings>
         </artifact>
       </deployment>
@@ -203,6 +206,7 @@
         <option name="Make" enabled="true" />
         <option name="BuildArtifacts" enabled="true">
           <artifact name="backend:war exploded" />
+          <artifact name="backend:war" />
         </option>
       </method>
     </configuration>
@@ -223,6 +227,7 @@
       <option name="presentableId" value="Default" />
       <updated>1777597133514</updated>
       <workItem from="1778153502134" duration="4860000" />
+      <workItem from="1778173966028" duration="620000" />
     </task>
     <servers />
   </component>

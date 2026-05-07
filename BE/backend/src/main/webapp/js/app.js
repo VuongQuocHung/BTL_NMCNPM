@@ -928,10 +928,30 @@ const App = (() => {
     
     const result = await request("/api/orders?size=50&sortBy=id&sortDir=desc");
     $("#ordersList").innerHTML = pageContent(result).map(orderView).join("") || `<div class="panel">Chưa có đơn hàng.</div>`;
+
+    $$("[data-user-cancel-order]").forEach((btn) => {
+        btn.onclick = async () => {
+            const orderId = btn.dataset.userCancelOrder;
+            if (!confirm(`Bạn có chắc muốn hủy đơn hàng #${orderId}?`)) return;
+
+            btn.disabled = true;
+            try {
+                await request(`/api/orders/${orderId}/cancel`, { method: "POST" });
+                alert(`Đã hủy đơn hàng #${orderId}.`);
+                await initOrders(); // Reload to update the view
+            } catch (error) {
+                alert(`Lỗi hủy đơn hàng: ${error.message}`);
+                btn.disabled = false;
+            }
+        };
+    });
   }
 
   function orderView(order) {
     const details = order.orderDetails || [];
+    const cancelButton = order.status === 'PENDING' 
+        ? `<button class="button danger" style="margin-top: 1rem;" data-user-cancel-order="${order.id}">Hủy đơn hàng</button>` 
+        : '';
     return `
       <article class="panel">
         <div class="section-title">
@@ -944,6 +964,7 @@ const App = (() => {
         <div class="mini-list">
           ${details.map((item) => `<div class="mini-row"><span>${html(item.product?.name || "Sản phẩm")} x ${item.quantity}</span><strong>${money(item.unitPrice)}</strong></div>`).join("")}
         </div>
+        ${cancelButton}
       </article>
     `;
   }
@@ -1261,20 +1282,60 @@ const App = (() => {
 
   async function loadAdminOrders() {
     const result = await request("/api/orders?size=100&sortBy=id&sortDir=desc");
-    $("#adminOrders").innerHTML = table(["ID", "Khách", "Tổng", "Trạng thái", "Đổi trạng thái"], pageContent(result).map((o) => [
-      o.id,
-      html(o.user?.email || ""),
-      money(o.totalAmount),
-      html(o.status),
-      `<select data-order-status="${o.id}">
-        ${["PENDING", "APPROVED", "CANCELLED", "DELIVERED"].map((s) => `<option value="${s}" ${s === o.status ? "selected" : ""}>${s}</option>`).join("")}
-      </select>`
-    ]));
+    $("#adminOrders").innerHTML = table(["ID", "Khách", "Tổng", "Trạng thái", "Hành động"], pageContent(result).map((o) => {
+      const statusSelect = `
+        <select data-order-status="${o.id}" data-current-status="${o.status}">
+          ${["PENDING", "APPROVED", "CANCELLED", "DELIVERED", "CANCELLED_REFUNDING"].map((s) => `<option value="${s}" ${s === o.status ? "selected" : ""}>${s}</option>`).join("")}
+        </select>`;
+      
+      const cancelButton = o.status === 'PENDING' 
+        ? `<button class="button danger" data-cancel-order="${o.id}">Hủy</button>` 
+        : '';
+
+      return [
+        o.id,
+        html(o.user?.email || o.phoneNumber || "Khách vãng lai"),
+        money(o.totalAmount),
+        `<span id="order-status-${o.id}">${html(o.status)}</span>`,
+        `<div class="actions" style="display: flex; gap: 8px;">${statusSelect}${cancelButton}</div>`
+      ];
+    }));
+
+    // Event listener for status change
     $$("[data-order-status]").forEach((select) => {
       select.onchange = async () => {
-        await request(`/api/orders/${select.dataset.orderStatus}/status?status=${select.value}`, { method: "PUT" });
-        setNotice("#adminNotice", "Đã cập nhật trạng thái.", "success");
+        const orderId = select.dataset.orderStatus;
+        const newStatus = select.value;
+        const oldStatus = select.dataset.currentStatus;
+        if (newStatus === oldStatus) return;
+        
+        try {
+            await request(`/api/orders/${orderId}/status?status=${newStatus}`, { method: "PUT" });
+            setNotice("#adminNotice", "Đã cập nhật trạng thái.", "success");
+            await loadAdminOrders(); // Reload to reflect all changes
+        } catch (error) {
+            setNotice("#adminNotice", `Lỗi: ${error.message}`, "error");
+            select.value = oldStatus; // Revert dropdown on failure
+        }
       };
+    });
+
+    // Event listener for cancel button
+    $$("[data-cancel-order]").forEach((btn) => {
+        btn.onclick = async () => {
+            const orderId = btn.dataset.cancelOrder;
+            if (!confirm(`Bạn có chắc muốn hủy đơn hàng #${orderId}?`)) return;
+
+            btn.disabled = true;
+            try {
+                await request(`/api/orders/${orderId}/cancel`, { method: "POST" });
+                setNotice("#adminNotice", `Đã hủy đơn hàng #${orderId}.`, "success");
+                await loadAdminOrders(); // Reload to update the view
+            } catch (error) {
+                setNotice("#adminNotice", `Lỗi hủy đơn hàng: ${error.message}`, "error");
+                btn.disabled = false;
+            }
+        };
     });
   }
 

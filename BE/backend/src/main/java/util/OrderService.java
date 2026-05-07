@@ -38,6 +38,38 @@ public class OrderService {
         return orderDao.save(order);
     }
 
+    /**
+     * Hủy đơn hàng.
+     * @param orderId ID đơn hàng cần hủy
+     * @param requesterId ID của người gửi yêu cầu (null nếu admin)
+     * @param isAdmin true nếu người gửi là admin (bỏ qua kiểm tra quyền sở hữu)
+     */
+    public void cancelOrder(Long orderId, Long requesterId, boolean isAdmin) {
+        Order order = orderDao.getOrderForCancel(orderId);
+
+        if (order == null) {
+            throw ApiException.notFound("Không tìm thấy đơn hàng");
+        }
+
+        // Kiểm tra quyền sở hữu: chỉ admin hoặc chủ đơn mới được hủy
+        if (!isAdmin && (order.getUser() == null || !order.getUser().getId().equals(requesterId))) {
+            throw ApiException.badRequest("Bạn không có quyền hủy đơn hàng này");
+        }
+
+        if (order.getStatus() != OrderStatus.PENDING) {
+            throw ApiException.badRequest("Chỉ có thể hủy đơn hàng đang ở trạng thái chờ xử lý (PENDING)");
+        }
+
+        // Hoàn trả tồn kho
+        if (order.getOrderDetails() != null) {
+            for (OrderDetail detail : order.getOrderDetails()) {
+                productDao.restoreStock(detail.getProduct().getId().intValue(), detail.getQuantity());
+            }
+        }
+
+        orderDao.updateOrderStatus(orderId.intValue(), OrderStatus.CANCELLED.name());
+    }
+
     public Order updateOrderStatus(Long id, OrderStatus status) {
         Order order = getOrderById(id);
         OrderStatus oldStatus = order.getStatus();

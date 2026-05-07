@@ -17,15 +17,17 @@ public class OrderServlet extends BaseServlet {
 
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException {
-        String subPath = ServletUtil.getSubPath(req);
-        if ("track".equals(subPath)) {
+        String pathInfo = ServletUtil.getPathInfo(req);
+        
+        // Handle /track endpoint explicitly before auth
+        if ("/track".equals(pathInfo) || "/track/".equals(pathInfo)) {
             String phone = req.getParameter("phone");
-            if (phone == null) {
+            if (phone == null || phone.trim().isEmpty()) {
                 JsonUtil.writeError(resp, 400, "Missing phone number");
                 return;
             }
-            List<Order> orders = orderService.getFilteredOrders(null, null, phone, 0, 100, null, null);
-            if (!orders.isEmpty()) {
+            List<Order> orders = orderService.getFilteredOrders(null, null, phone.trim(), 0, 100, null, null);
+            if (orders != null && !orders.isEmpty()) {
                 JsonUtil.writeJson(resp, 200, orders);
             } else {
                 JsonUtil.writeError(resp, 404, "Không tìm thấy đơn hàng cho số điện thoại này");
@@ -36,6 +38,7 @@ public class OrderServlet extends BaseServlet {
         requireAuth(req);
         Long id = ServletUtil.getPathId(req);
         if (id != null) { JsonUtil.writeJson(resp, 200, orderService.getOrderById(id)); return; }
+
         int page = ServletUtil.getIntParam(req, "page", 0);
         int size = ServletUtil.getIntParam(req, "size", 10);
         String sortBy = ServletUtil.getStringParam(req, "sortBy");
@@ -54,6 +57,25 @@ public class OrderServlet extends BaseServlet {
     @Override
     protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws IOException {
         requireAuth(req);
+        String subPath = ServletUtil.getSubPath(req);
+        if ("cancel".equals(subPath)) {
+            Long id = ServletUtil.getPathId(req);
+            if (id == null) { JsonUtil.writeError(resp, 400, "Missing ID"); return; }
+            try {
+                Long userId = ServletUtil.getCurrentUserId(req);
+                boolean isAdmin = ServletUtil.isAdmin(req);
+                orderService.cancelOrder(id, userId, isAdmin);
+                resp.setStatus(200);
+                resp.setContentType("application/json");
+                resp.getWriter().write("{\"message\": \"Hủy đơn hàng thành công\"}");
+            } catch (ApiException e) {
+                JsonUtil.writeError(resp, e.getStatus(), e.getMessage());
+            } catch (Exception e) {
+                JsonUtil.writeError(resp, 500, "Lỗi server nội bộ");
+            }
+            return;
+        }
+
         Order order = JsonUtil.readBody(req, Order.class);
         Order createdOrder = orderService.createOrder(order, ServletUtil.getCurrentUserId(req));
         

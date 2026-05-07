@@ -14,6 +14,15 @@ public class ProductDao extends BaseDao<Product> {
         super(Product.class);
     }
 
+    public void restoreStock(int productId, int quantity) {
+        inTransactionVoid(session -> {
+            session.createNativeQuery("UPDATE products SET stock = stock + :quantity WHERE id = :productId")
+                    .setParameter("quantity", quantity)
+                    .setParameter("productId", productId)
+                    .executeUpdate();
+        });
+    }
+
     public Optional<Product> findWithDetailsById(Long id) {
         try (Session session = openSession()) {
             Query<Product> q = session.createQuery(

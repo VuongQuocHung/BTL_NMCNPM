@@ -15,6 +15,32 @@ public class OrderDao extends BaseDao<Order> {
         super(Order.class);
     }
 
+    /**
+     * Load order với user + orderDetails + product để dùng khi hủy đơn.
+     * Dùng HQL thay vì native query để LAZY relations được load trong cùng session.
+     */
+    public Order getOrderForCancel(Long orderId) {
+        try (Session session = openSession()) {
+            return session.createQuery(
+                    "SELECT DISTINCT o FROM Order o " +
+                    "LEFT JOIN FETCH o.user " +
+                    "LEFT JOIN FETCH o.orderDetails od " +
+                    "LEFT JOIN FETCH od.product " +
+                    "WHERE o.id = :orderId", Order.class)
+                    .setParameter("orderId", orderId)
+                    .uniqueResult();
+        }
+    }
+
+    public void updateOrderStatus(int orderId, String status) {
+        inTransactionVoid(session -> {
+            session.createNativeQuery("UPDATE orders SET status = :status WHERE id = :orderId")
+                    .setParameter("status", status)
+                    .setParameter("orderId", orderId)
+                    .executeUpdate();
+        });
+    }
+
     public Optional<Order> findWithDetailsById(Long id) {
         try (Session session = openSession()) {
             Query<Order> q = session.createQuery(

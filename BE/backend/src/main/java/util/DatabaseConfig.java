@@ -9,7 +9,7 @@ public class DatabaseConfig {
     );
 
     // Tên đăng nhập MySQL
-    public static final String USERNAME = EnvConfig.get("DB_USERNAME", "");
+    public static final String USERNAME = EnvConfig.get("DB_USERNAME", "root");
 
     // Mật khẩu MySQL
     public static final String PASSWORD = EnvConfig.get("DB_PASSWORD", "@Trung3001");

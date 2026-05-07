@@ -1,7 +1,6 @@
 package filter;
 
 import util.HibernateUtil;
-import model.User;
 import util.JwtService;
 import util.JsonUtil;
 import jakarta.servlet.*;
