@@ -136,6 +136,15 @@
     </servlet-mapping>
 
     <servlet>
+        <servlet-name>ImageServlet</servlet-name>
+        <servlet-class>controller.ImageServlet</servlet-class>
+    </servlet>
+    <servlet-mapping>
+        <servlet-name>ImageServlet</servlet-name>
+        <url-pattern>/uploads/*</url-pattern>
+    </servlet-mapping>
+
+    <servlet>
         <servlet-name>VnPayReturnServlet</servlet-name>
         <servlet-class>controller.VnPayReturnServlet</servlet-class>
     </servlet>

@@ -63,6 +63,7 @@ const App = (() => {
   let activeVouchers = [];
   const compareState = { ids: new Set(), categoryId: null };
   const compareStorageKey = "compare.ids";
+  let imageFallbackBound = false;
   const money = (value) => new Intl.NumberFormat("vi-VN", {
     style: "currency",
     currency: "VND",
@@ -123,12 +124,43 @@ const App = (() => {
 
   const pageContent = (data) => Array.isArray(data) ? data : (data?.content || []);
   const firstImage = (product) => product?.images?.find((x) => x.isPrimary)?.imageUrl || product?.images?.[0]?.imageUrl;
-  const imageUrl = (url) => {
-    if (!url) return fallbackImage;
-    if (/^https?:\/\//i.test(url) || /^\/\//.test(url) || url.startsWith("data:") || url.startsWith("blob:")) return url;
-    if (url.startsWith("/")) return `${apiBase()}${url}`;
-    return `${apiBase()}/${url}`;
+  const isLocalHost = (hostname) => ["localhost", "127.0.0.1", "::1", "[::1]"].includes(hostname);
+  const uploadPathFromLocalUrl = (url) => {
+    const value = String(url || "").trim();
+    if (!/^https?:\/\//i.test(value)) return "";
+    try {
+      const parsed = new URL(value);
+      const marker = "/uploads/";
+      const markerIndex = parsed.pathname.indexOf(marker);
+      if (markerIndex >= 0 && (parsed.origin === location.origin || isLocalHost(parsed.hostname))) {
+        return parsed.pathname.substring(markerIndex);
+      }
+    } catch {
+      return "";
+    }
+    return "";
   };
+  const normalizeImageUrlForStorage = (url) => uploadPathFromLocalUrl(url) || String(url || "").trim();
+  const imageUrl = (url) => {
+    const value = String(url || "").trim();
+    if (!value) return fallbackImage;
+    const localUploadPath = uploadPathFromLocalUrl(value);
+    if (localUploadPath) return `${apiBase()}${localUploadPath}`;
+    if (/^https?:\/\//i.test(value) || /^\/\//.test(value) || value.startsWith("data:") || value.startsWith("blob:")) return value;
+    if (value.startsWith("/")) return `${apiBase()}${value}`;
+    return `${apiBase()}/${value}`;
+  };
+
+  function bindImageFallback() {
+    if (imageFallbackBound) return;
+    imageFallbackBound = true;
+    document.addEventListener("error", (event) => {
+      const target = event.target;
+      if (!(target instanceof HTMLImageElement) || target.dataset.fallbackApplied === "true") return;
+      target.dataset.fallbackApplied = "true";
+      target.src = fallbackImage;
+    }, true);
+  }
 
   function setNotice(id, message, type = "") {
     const el = typeof id === "string" ? $(id) : id;
@@ -1031,7 +1063,7 @@ const App = (() => {
         try {
           const data = formData(event.currentTarget);
           const uploadedImageUrl = await uploadAdminProductImage(event.currentTarget);
-          const selectedImageUrl = uploadedImageUrl || String(data.imageUrl || "").trim();
+          const selectedImageUrl = normalizeImageUrlForStorage(uploadedImageUrl || String(data.imageUrl || "").trim());
           const payload = {
             name: data.name,
             price: Number(data.price || 0),
@@ -1100,7 +1132,7 @@ const App = (() => {
     const uploadData = new FormData();
     uploadData.append("file", file);
     const result = await request("/api/files", { method: "POST", body: uploadData });
-    form.imageUrl.value = result.imageUrl || result.url || "";
+    form.imageUrl.value = normalizeImageUrlForStorage(result.imageUrl || result.url || "");
     renderAdminProductImagePreview(form.imageUrl.value);
     return form.imageUrl.value;
   }
@@ -1299,6 +1331,7 @@ const App = (() => {
   }
 
   async function boot() {
+    bindImageFallback();
     updateHeader();
     await refreshCartCount();
     const page = document.body.dataset.page;

@@ -21,9 +21,14 @@ public class FileUploadServlet extends BaseServlet {
             Part filePart = req.getPart("file");
             if (filePart == null) { JsonUtil.writeError(resp, 400, "No file uploaded"); return; }
             String fileName = fileStorageService.storeFile(filePart.getInputStream(), filePart.getSubmittedFileName());
+            String imagePath = "/uploads/" + fileName;
             String baseUrl = req.getScheme() + "://" + req.getServerName() + ":" + req.getServerPort() + req.getContextPath();
-            String fileUrl = baseUrl + "/uploads/" + fileName;
-            JsonUtil.writeJson(resp, 200, Map.of("fileName", fileName, "url", fileUrl, "imageUrl", fileUrl));
+            JsonUtil.writeJson(resp, 200, Map.of(
+                    "fileName", fileName,
+                    "url", imagePath,
+                    "imageUrl", imagePath,
+                    "absoluteUrl", baseUrl + imagePath
+            ));
         } catch (Exception e) {
             JsonUtil.writeError(resp, 500, "Upload failed: " + e.getMessage());
         }

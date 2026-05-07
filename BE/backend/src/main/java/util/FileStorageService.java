@@ -4,6 +4,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.URISyntaxException;
 import java.nio.file.*;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 public class FileStorageService {
@@ -15,12 +17,27 @@ public class FileStorageService {
             return Paths.get(configuredDir).toAbsolutePath().normalize();
         }
 
-        Path webappRoot = deployedWebappRoot();
-        if (webappRoot != null) {
-            return webappRoot.resolve("uploads").toAbsolutePath().normalize();
-        }
+        return projectUploadRoot();
+    }
 
+    public static List<Path> readableUploadRootLocations() {
+        List<Path> roots = new ArrayList<>();
+        roots.add(uploadRootLocation());
+
+        Path deployedRoot = deployedUploadRoot();
+        if (deployedRoot != null && roots.stream().noneMatch(deployedRoot::equals)) {
+            roots.add(deployedRoot);
+        }
+        return roots;
+    }
+
+    private static Path projectUploadRoot() {
         return Paths.get(System.getProperty("user.dir"), "uploads").toAbsolutePath().normalize();
+    }
+
+    private static Path deployedUploadRoot() {
+        Path webappRoot = deployedWebappRoot();
+        return webappRoot != null ? webappRoot.resolve("uploads").toAbsolutePath().normalize() : null;
     }
 
     private static Path deployedWebappRoot() {
