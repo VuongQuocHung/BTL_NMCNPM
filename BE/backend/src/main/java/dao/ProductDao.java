@@ -75,6 +75,17 @@ public class ProductDao extends BaseDao<Product> {
         }
     }
 
+    public List<Product> findByIdsWithDetails(List<Long> ids) {
+        if (ids == null || ids.isEmpty()) return List.of();
+        try (Session session = openSession()) {
+            Query<Product> q = session.createQuery(
+                    "SELECT DISTINCT p FROM Product p LEFT JOIN FETCH p.images LEFT JOIN FETCH p.specification " +
+                    "LEFT JOIN FETCH p.brand LEFT JOIN FETCH p.category WHERE p.id IN :ids", Product.class);
+            q.setParameter("ids", ids);
+            return q.list();
+        }
+    }
+
     @Override
     public List<Product> findAll() {
         try (Session session = openSession()) {

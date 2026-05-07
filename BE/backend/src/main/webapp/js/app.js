@@ -61,6 +61,8 @@ const App = (() => {
   const params = new URLSearchParams(location.search);
   let currentCartState = null;
   let activeVouchers = [];
+  const compareState = { ids: new Set(), categoryId: null };
+  const compareStorageKey = "compare.ids";
   const money = (value) => new Intl.NumberFormat("vi-VN", {
     style: "currency",
     currency: "VND",
@@ -139,6 +141,17 @@ const App = (() => {
     return Object.fromEntries(new FormData(form).entries());
   }
 
+  function loadCompareIds() {
+    const raw = localStorage.getItem(compareStorageKey);
+    if (!raw) return [];
+    return raw.split(",").map((x) => Number(x)).filter((x) => Number.isFinite(x) && x > 0);
+  }
+
+  function saveCompareIds(ids) {
+    const value = Array.from(ids).join(",");
+    localStorage.setItem(compareStorageKey, value);
+  }
+
   function requireLogin() {
     if (!token()) {
       location.href = "login.jsp";
@@ -186,6 +199,10 @@ const App = (() => {
         <a class="product-image" href="product.jsp?id=${product.id}">
           <img src="${imageUrl(firstImage(product))}" alt="${html(product.name || "Sản phẩm")}">
         </a>
+        <label class="compare-toggle">
+          <input type="checkbox" data-compare-id="${product.id}" data-compare-category="${product.category?.id || ""}">
+          <span>So sánh</span>
+        </label>
         <div>
           <h3><a href="product.jsp?id=${product.id}">${html(product.name || "Không tên")}</a></h3>
           <p class="muted">${html(product.brand?.name || "")} ${product.category?.name ? "- " + html(product.category.name) : ""}</p>
@@ -274,6 +291,11 @@ const App = (() => {
     ["name", "brandId", "categoryId", "minPrice", "maxPrice"].forEach((key) => {
       if (params.get(key)) query.set(key, params.get(key));
     });
+    const sortDir = params.get("sortDir");
+    if (sortDir) {
+      query.set("sortBy", "price");
+      query.set("sortDir", sortDir);
+    }
     query.set("page", page);
     query.set("size", "8");
 
@@ -289,6 +311,28 @@ const App = (() => {
         Object.entries(data).forEach(([key, value]) => {
           if (String(value).trim()) next.set(key, value);
         });
+        const selectedSort = params.get("sortDir");
+        if (selectedSort) {
+          next.set("sortBy", "price");
+          next.set("sortDir", selectedSort);
+        }
+        location.href = `products.jsp?${next.toString()}`;
+      });
+    }
+
+    const sortSelect = $("#priceSort");
+    if (sortSelect) {
+      sortSelect.value = params.get("sortDir") || "";
+      sortSelect.addEventListener("change", () => {
+        const next = new URLSearchParams(location.search);
+        if (sortSelect.value) {
+          next.set("sortBy", "price");
+          next.set("sortDir", sortSelect.value);
+        } else {
+          next.delete("sortBy");
+          next.delete("sortDir");
+        }
+        next.set("page", "0");
         location.href = `products.jsp?${next.toString()}`;
       });
     }
@@ -304,10 +348,171 @@ const App = (() => {
       $("#prevPage").onclick = () => changePage(page - 1);
       $("#nextPage").onclick = () => changePage(page + 1);
       bindAddProductToCart($("#productList"));
+      bindCompare($("#productList"));
       setNotice("#productNotice", "");
     } catch (error) {
       setNotice("#productNotice", error.message, "error");
     }
+  }
+
+  function bindCompare(root = document) {
+    const compareNotice = $("#compareNotice");
+    const compareCount = $("#compareCount");
+    const compareBtn = $("#compareBtn");
+    const compareResetBtn = $("#compareResetBtn");
+
+    if (compareState.ids.size === 0) {
+      loadCompareIds().forEach((id) => compareState.ids.add(id));
+    }
+
+    const updateCompareUi = () => {
+      const count = compareState.ids.size;
+      if (compareCount) compareCount.textContent = `${count}/3 đã chọn`;
+      if (compareBtn) compareBtn.disabled = count < 2;
+      if (compareNotice && count === 0) setNotice(compareNotice, "");
+    };
+
+    $$(`[data-compare-id]`, root).forEach((input) => {
+      const id = Number(input.dataset.compareId);
+      const categoryId = Number(input.dataset.compareCategory || 0);
+      input.checked = compareState.ids.has(id);
+      if (input.checked && !compareState.categoryId) {
+        compareState.categoryId = categoryId || null;
+      }
+      input.addEventListener("change", () => {
+        if (input.checked) {
+          if (compareState.ids.size >= 3) {
+            input.checked = false;
+            setNotice(compareNotice, "Chỉ được phép so sánh tối đa 3 sản phẩm cùng lúc", "error");
+            return;
+          }
+          if (compareState.categoryId && compareState.categoryId !== categoryId) {
+            input.checked = false;
+            setNotice(compareNotice, "Vui lòng chọn các sản phẩm cùng loại để thực hiện so sánh", "error");
+            return;
+          }
+          compareState.ids.add(id);
+          compareState.categoryId = compareState.categoryId || categoryId;
+        } else {
+          compareState.ids.delete(id);
+          if (compareState.ids.size === 0) compareState.categoryId = null;
+        }
+        setNotice(compareNotice, "");
+        saveCompareIds(compareState.ids);
+        updateCompareUi();
+      });
+    });
+
+    if (compareBtn) {
+      compareBtn.onclick = () => {
+        if (compareState.ids.size < 2) {
+          setNotice(compareNotice, "Vui lòng chọn ít nhất 2 sản phẩm", "error");
+          return;
+        }
+        saveCompareIds(compareState.ids);
+        const ids = Array.from(compareState.ids).join(",");
+        location.href = `compare.jsp?ids=${ids}`;
+      };
+    }
+
+    if (compareResetBtn) {
+      compareResetBtn.onclick = () => {
+        compareState.ids.clear();
+        compareState.categoryId = null;
+        saveCompareIds(compareState.ids);
+        $$(`[data-compare-id]`, root).forEach((input) => {
+          input.checked = false;
+        });
+        setNotice(compareNotice, "Đã xóa lựa chọn.", "success");
+        updateCompareUi();
+      };
+    }
+
+    updateCompareUi();
+  }
+
+  async function initCompare() {
+    let ids = params.get("ids");
+    if (!ids) {
+      const stored = loadCompareIds();
+      if (stored.length >= 2) {
+        ids = stored.join(",");
+      } else {
+        setNotice("#compareNotice", "Thiếu danh sách sản phẩm để so sánh.", "error");
+        return;
+      }
+    }
+    setNotice("#compareNotice", "Đang tải dữ liệu so sánh...");
+    try {
+      const result = await request(`/api/products/compare?ids=${encodeURIComponent(ids)}`);
+      const idList = ids.split(",").map((x) => Number(x)).filter((x) => Number.isFinite(x) && x > 0);
+      const products = Array.isArray(result) ? result : pageContent(result);
+      const filtered = idList.length ? products.filter((p) => idList.includes(p.id)) : products;
+      saveCompareIds(idList);
+      renderCompare(filtered);
+      setNotice("#compareNotice", "");
+    } catch (error) {
+      setNotice("#compareNotice", error.message, "error");
+    }
+  }
+
+  function renderCompare(products) {
+    const container = $("#compareTable");
+    if (!container) return;
+    if (!products?.length) {
+      container.innerHTML = `<div class="panel">Không có sản phẩm để so sánh.</div>`;
+      return;
+    }
+
+    const specs = [
+      { key: "cpu", label: "CPU" },
+      { key: "ram", label: "RAM" },
+      { key: "storage", label: "Ổ cứng" },
+      { key: "vga", label: "Card đồ họa" },
+      { key: "screen", label: "Màn hình" },
+      { key: "os", label: "Hệ điều hành" },
+      { key: "battery", label: "Pin" },
+      { key: "weight", label: "Trọng lượng" }
+    ];
+
+    const header = `
+      <tr>
+        <th>Thông tin</th>
+        ${products.map((p) => `<th>${html(p.name || "Sản phẩm")}</th>`).join("")}
+      </tr>
+    `;
+
+    const rows = [
+      { label: "Giá", values: products.map((p) => money(p.price)) },
+      { label: "Thương hiệu", values: products.map((p) => html(p.brand?.name || "")) },
+      { label: "Danh mục", values: products.map((p) => html(p.category?.name || "")) }
+    ].map((row) => compareRow(row.label, row.values));
+
+    specs.forEach((spec) => {
+      const values = products.map((p) => html(p.specification?.[spec.key] || ""));
+      rows.push(compareRow(spec.label, values));
+    });
+
+    container.innerHTML = `
+      <div class="table-wrap compare-table">
+        <table>
+          <thead>${header}</thead>
+          <tbody>${rows.join("")}</tbody>
+        </table>
+      </div>
+    `;
+  }
+
+  function compareRow(label, values) {
+    const normalized = values.map((v) => String(v || "").trim());
+    const unique = new Set(normalized.filter((v) => v));
+    const hasDiff = unique.size > 1;
+    return `
+      <tr class="${hasDiff ? "compare-diff" : ""}">
+        <td><strong>${html(label)}</strong></td>
+        ${values.map((v) => `<td>${v || "-"}</td>`).join("")}
+      </tr>
+    `;
   }
 
   function changePage(page) {
@@ -1085,6 +1290,7 @@ const App = (() => {
     try {
       if (page === "home") await initHome();
       if (page === "products") await initProducts();
+      if (page === "compare") await initCompare();
       if (page === "product-detail") await initProductDetail();
       if (page === "cart") await initCartDetailView();
       if (page === "checkout") await initCheckout();
