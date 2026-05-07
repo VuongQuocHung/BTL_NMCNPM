@@ -135,6 +135,15 @@
         <url-pattern>/api/files/*</url-pattern>
     </servlet-mapping>
 
+    <servlet>
+        <servlet-name>VnPayReturnServlet</servlet-name>
+        <servlet-class>controller.VnPayReturnServlet</servlet-class>
+    </servlet>
+    <servlet-mapping>
+        <servlet-name>VnPayReturnServlet</servlet-name>
+        <url-pattern>/payment-return</url-pattern>
+    </servlet-mapping>
+
     <!-- Welcome file -->
     <welcome-file-list>
         <welcome-file>index.jsp</welcome-file>

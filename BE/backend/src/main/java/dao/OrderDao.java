@@ -39,6 +39,7 @@ public class OrderDao extends BaseDao<Order> {
     public List<Order> findFiltered(OrderStatus status, Long userId, String phoneNumber,
                                      BigDecimal minAmount, BigDecimal maxAmount,
                                      int page, int size, String sortBy, String sortDir) {
+        System.out.println("DEBUG: Finding orders for phone: " + phoneNumber);
         try (Session session = openSession()) {
             StringBuilder hql = new StringBuilder(
                     "SELECT DISTINCT o FROM Order o LEFT JOIN FETCH o.user LEFT JOIN FETCH o.orderDetails od LEFT JOIN FETCH od.product p LEFT JOIN FETCH p.images LEFT JOIN FETCH p.brand LEFT JOIN FETCH p.category LEFT JOIN FETCH p.specification WHERE 1=1");
@@ -50,6 +51,7 @@ public class OrderDao extends BaseDao<Order> {
             hql.append(" ORDER BY o.").append(safeSortField(sortBy)).append(" ")
                .append("desc".equalsIgnoreCase(sortDir) ? "DESC" : "ASC");
 
+            System.out.println("DEBUG: HQL: " + hql.toString());
             Query<Order> q = session.createQuery(hql.toString(), Order.class);
             if (status != null) q.setParameter("status", status);
             if (userId != null) q.setParameter("userId", userId);
@@ -57,7 +59,9 @@ public class OrderDao extends BaseDao<Order> {
             if (minAmount != null) q.setParameter("minAmount", minAmount);
             if (maxAmount != null) q.setParameter("maxAmount", maxAmount);
 
-            return q.list();
+            List<Order> results = q.list();
+            System.out.println("DEBUG: Results found: " + results.size());
+            return results;
         }
     }
 

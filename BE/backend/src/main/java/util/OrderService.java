@@ -31,6 +31,7 @@ public class OrderService {
         User user = userDao.findById(userId).orElseThrow(() -> ApiException.notFound("User not found"));
         order.setUser(user);
         order.setStatus(OrderStatus.PENDING);
+        order.setPaymentMethod(order.getPaymentMethod());
         if (order.getOrderDetails() != null) {
             for (OrderDetail detail : order.getOrderDetails()) { detail.setOrder(order); }
         }

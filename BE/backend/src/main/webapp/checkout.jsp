@@ -37,6 +37,15 @@
         <label>Địa chỉ nhận hàng
           <textarea name="address" rows="3" required></textarea>
         </label>
+        <label>Phương thức thanh toán</label>
+        <div style="display: flex; gap: 20px; margin-bottom: 1rem;">
+          <label style="display: flex; align-items: center; gap: 5px;">
+            <input type="radio" name="paymentMethod" value="COD" checked> Thanh toán khi nhận hàng (COD)
+          </label>
+          <label style="display: flex; align-items: center; gap: 5px;">
+            <input type="radio" name="paymentMethod" value="VNPAY"> Thanh toán Online (VNPay)
+          </label>
+        </div>
         <label>Ghi chú
           <textarea name="note" rows="3"></textarea>
         </label>
