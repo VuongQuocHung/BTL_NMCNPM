@@ -39,7 +39,9 @@
         <label>Tồn kho <input name="stock" type="number" min="0" required></label>
         <label>ID thương hiệu <input name="brandId" type="number"></label>
         <label>ID danh mục <input name="categoryId" type="number"></label>
-        <label>Ảnh <input name="imageUrl" placeholder="/uploads/file.jpg hoặc URL"></label>
+        <label>Ảnh URL <input name="imageUrl" placeholder="/uploads/file.jpg hoặc URL"></label>
+        <label>Chọn ảnh từ máy <input name="imageFile" type="file" accept="image/*"></label>
+        <div id="adminProductImagePreview" class="upload-preview hidden"></div>
         <label>CPU <input name="cpu"></label>
         <label>RAM <input name="ram"></label>
         <label>Ổ cứng <input name="storage"></label>

@@ -123,7 +123,7 @@ const App = (() => {
   const firstImage = (product) => product?.images?.find((x) => x.isPrimary)?.imageUrl || product?.images?.[0]?.imageUrl;
   const imageUrl = (url) => {
     if (!url) return fallbackImage;
-    if (/^https?:\/\//i.test(url) || /^\/\//.test(url) || url.startsWith("data:")) return url;
+    if (/^https?:\/\//i.test(url) || /^\/\//.test(url) || url.startsWith("data:") || url.startsWith("blob:")) return url;
     if (url.startsWith("/")) return `${apiBase()}${url}`;
     return `${apiBase()}/${url}`;
   };
@@ -805,26 +805,29 @@ const App = (() => {
 
     const form = $("#adminProductForm");
     if (form) {
+      bindAdminProductImageUpload(form);
       form.addEventListener("submit", async (event) => {
         event.preventDefault();
-        const data = formData(event.currentTarget);
-        const payload = {
-          name: data.name,
-          price: Number(data.price || 0),
-          importPrice: Number(data.importPrice || 0),
-          stock: Number(data.stock || 0),
-          description: data.description,
-          brand: data.brandId ? { id: Number(data.brandId) } : null,
-          category: data.categoryId ? { id: Number(data.categoryId) } : null,
-          images: data.imageUrl ? [{ imageUrl: data.imageUrl, isPrimary: true }] : [],
-          specification: {
-            cpu: data.cpu,
-            ram: data.ram,
-            storage: data.storage,
-            screen: data.screen
-          }
-        };
         try {
+          const data = formData(event.currentTarget);
+          const uploadedImageUrl = await uploadAdminProductImage(event.currentTarget);
+          const selectedImageUrl = uploadedImageUrl || String(data.imageUrl || "").trim();
+          const payload = {
+            name: data.name,
+            price: Number(data.price || 0),
+            importPrice: Number(data.importPrice || 0),
+            stock: Number(data.stock || 0),
+            description: data.description,
+            brand: data.brandId ? { id: Number(data.brandId) } : null,
+            category: data.categoryId ? { id: Number(data.categoryId) } : null,
+            images: selectedImageUrl ? [{ imageUrl: selectedImageUrl, isPrimary: true }] : [],
+            specification: {
+              cpu: data.cpu,
+              ram: data.ram,
+              storage: data.storage,
+              screen: data.screen
+            }
+          };
           await request(data.id ? `/api/products/${data.id}` : "/api/products", {
             method: data.id ? "PUT" : "POST",
             body: payload
@@ -836,6 +839,57 @@ const App = (() => {
         }
       });
     }
+  }
+
+  function bindAdminProductImageUpload(form) {
+    const imageFile = form.imageFile;
+    const imageUrlInput = form.imageUrl;
+    const preview = $("#adminProductImagePreview");
+    if (!imageFile || !preview) return;
+
+    imageFile.addEventListener("change", () => {
+      const file = imageFile.files?.[0];
+      if (!file) {
+        renderAdminProductImagePreview(imageUrlInput?.value || "");
+        return;
+      }
+      const localUrl = URL.createObjectURL(file);
+      renderAdminProductImagePreview(localUrl);
+    });
+
+    if (imageUrlInput) {
+      imageUrlInput.addEventListener("input", () => {
+        if (!imageFile.files?.length) renderAdminProductImagePreview(imageUrlInput.value);
+      });
+    }
+
+    form.addEventListener("reset", () => {
+      setTimeout(() => renderAdminProductImagePreview(""), 0);
+    });
+  }
+
+  async function uploadAdminProductImage(form) {
+    const file = form.imageFile?.files?.[0];
+    if (!file) return "";
+
+    if (!file.type.startsWith("image/")) {
+      throw new Error("File được chọn không phải ảnh.");
+    }
+
+    setNotice("#adminNotice", "Đang tải ảnh lên...");
+    const uploadData = new FormData();
+    uploadData.append("file", file);
+    const result = await request("/api/files", { method: "POST", body: uploadData });
+    form.imageUrl.value = result.imageUrl || result.url || "";
+    renderAdminProductImagePreview(form.imageUrl.value);
+    return form.imageUrl.value;
+  }
+
+  function renderAdminProductImagePreview(url) {
+    const preview = $("#adminProductImagePreview");
+    if (!preview) return;
+    preview.classList.toggle("hidden", !url);
+    preview.innerHTML = url ? `<img src="${imageUrl(url)}" alt="Ảnh sản phẩm">` : "";
   }
 
   async function saveAdmin(base, id, payload, reload) {
@@ -887,6 +941,7 @@ const App = (() => {
     form.brandId.value = product.brand?.id || "";
     form.categoryId.value = product.category?.id || "";
     form.imageUrl.value = firstImage(product) || "";
+    renderAdminProductImagePreview(form.imageUrl.value);
     form.cpu.value = product.specification?.cpu || "";
     form.ram.value = product.specification?.ram || "";
     form.storage.value = product.specification?.storage || "";
