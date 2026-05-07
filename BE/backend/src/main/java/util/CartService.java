@@ -183,7 +183,6 @@ public class CartService {
     }
 
     /*
-     * Ten ham theo so do thiet ke: CartController.getCurrentCart(session, userId).
      * - Khach chua dang nhap: gio hang nam trong HttpSession.
      * - Khach da dang nhap: gio hang nam trong database.
      */

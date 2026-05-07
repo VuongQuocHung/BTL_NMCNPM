@@ -223,7 +223,7 @@ const App = (() => {
     `;
   }
 
-  // UC-2.1: ProductListView/ProductDetailView gui request them san pham voi quantity mac dinh = 1.
+  // UC-2.1: ProductListView/ProductDetailView gui request them san pham voi quantity mac dinh = 1, gọi POST /api/cart/items
   function bindAddProductToCart(root = document) {
     if (!root) return;
     $$("[data-add-cart]", root).forEach((button) => {
