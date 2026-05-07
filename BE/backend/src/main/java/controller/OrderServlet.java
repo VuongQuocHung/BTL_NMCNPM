@@ -8,6 +8,7 @@ import util.*;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.util.Collections;
 import java.util.List;
 
 public class OrderServlet extends BaseServlet {
@@ -16,6 +17,22 @@ public class OrderServlet extends BaseServlet {
 
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+        String subPath = ServletUtil.getSubPath(req);
+        if ("track".equals(subPath)) {
+            String phone = req.getParameter("phone");
+            if (phone == null) {
+                JsonUtil.writeError(resp, 400, "Missing phone number");
+                return;
+            }
+            List<Order> orders = orderService.getFilteredOrders(null, null, phone, 0, 100, null, null);
+            if (!orders.isEmpty()) {
+                JsonUtil.writeJson(resp, 200, orders);
+            } else {
+                JsonUtil.writeError(resp, 404, "Không tìm thấy đơn hàng cho số điện thoại này");
+            }
+            return;
+        }
+
         requireAuth(req);
         Long id = ServletUtil.getPathId(req);
         if (id != null) { JsonUtil.writeJson(resp, 200, orderService.getOrderById(id)); return; }
@@ -38,7 +55,23 @@ public class OrderServlet extends BaseServlet {
     protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws IOException {
         requireAuth(req);
         Order order = JsonUtil.readBody(req, Order.class);
-        JsonUtil.writeJson(resp, 200, orderService.createOrder(order, ServletUtil.getCurrentUserId(req)));
+        Order createdOrder = orderService.createOrder(order, ServletUtil.getCurrentUserId(req));
+        
+        if ("VNPAY".equalsIgnoreCase(order.getPaymentMethod())) {
+            try {
+                String paymentUrl = VnPayService.createPaymentUrl(
+                    createdOrder.getId(), 
+                    createdOrder.getTotalAmount().longValue(), 
+                    "Thanh toan don hang " + createdOrder.getId(), 
+                    req.getRemoteAddr()
+                );
+                JsonUtil.writeJson(resp, 200, Collections.singletonMap("paymentUrl", paymentUrl));
+            } catch (Exception e) {
+                JsonUtil.writeError(resp, 500, "Loi tao link thanh toan");
+            }
+        } else {
+            JsonUtil.writeJson(resp, 200, createdOrder);
+        }
     }
 
     @Override

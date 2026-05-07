@@ -13,6 +13,7 @@
     <nav class="nav">
       <a href="index.jsp">Trang chủ</a>
       <a href="products.jsp">Sản phẩm</a>
+      <a href="track-order.jsp">Tra cứu đơn hàng</a>
       <a href="cart.jsp">Giỏ hàng <span id="cartCount" class="badge">0</span></a>
       <a id="accountLink" href="login.jsp">Đăng nhập</a>
       <button id="logoutBtn" class="link-button hidden">Đăng xuất</button>

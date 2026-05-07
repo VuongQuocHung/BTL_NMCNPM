@@ -29,6 +29,7 @@ public class JwtFilter implements Filter {
         String path = request.getPathInfo();
         if (path == null) path = "";
         String servletPath = request.getServletPath(); // e.g. /api/auth
+        String fullPath = servletPath + (request.getPathInfo() != null ? request.getPathInfo() : "");
 
         // Luôn cho qua — token chỉ dùng để enrich request attributes
         String jwt = parseJwt(request);

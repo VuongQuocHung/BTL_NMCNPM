@@ -590,15 +590,22 @@ const App = (() => {
           unitPrice: item.unitPrice
         }));
         try {
-          await request("/api/orders", {
+          const result = await request("/api/orders", {
             method: "POST",
             body: {
               phoneNumber: data.phone,
               shippingAddress: data.address,
+              paymentMethod: data.paymentMethod,
               totalAmount: cart.totalAmount,
               orderDetails
             }
           });
+
+          if (data.paymentMethod === "VNPAY" && result.paymentUrl) {
+            window.location.href = result.paymentUrl;
+            return;
+          }
+
           await request("/api/cart/items", { method: "DELETE" });
           setNotice("#checkoutNotice", "Đặt hàng thành công. Bạn có thể xem lại trong trang đơn hàng.", "success");
           checkoutForm.reset();
@@ -706,6 +713,14 @@ const App = (() => {
 
   async function initOrders() {
     if (!requireLogin()) return;
+    
+    const status = params.get("status");
+    if (status === "success") {
+        alert("Thanh toán thành công!");
+    } else if (status === "failed") {
+        alert("Thanh toán thất bại, vui lòng thử lại.");
+    }
+    
     const result = await request("/api/orders?size=50&sortBy=id&sortDir=desc");
     $("#ordersList").innerHTML = pageContent(result).map(orderView).join("") || `<div class="panel">Chưa có đơn hàng.</div>`;
   }
